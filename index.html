@@ -473,7 +473,7 @@ async function loadFromSupabase(){
       sbFetch('products?order=category,name'),
       sbFetch('movements?order=date.desc')
     ]);
-    state.products = products || [];
+    state.products = (products || []).map(p=>({...p, ignore_low_stock:p.ignore_low_stock===true}));
     state.movements = movements || [];
     supabaseOk = true;
     setSyncStatus('ok','Live');
@@ -897,24 +897,26 @@ function closeModal(id){ const el=document.getElementById(id); el.className='mod
 // ── KPIs ──────────────────────────────────────────────
 
 async function toggleIgnoreLowStock(pid){
-  const p=state.products.find(x=>x.id===pid); if(!p)return;
-  const newVal=!p.ignore_low_stock;
+  const p=state.products.find(x=>x.id===pid);
+  if(!p){ console.warn('Product not found:', pid); return; }
+  const newVal=!(p.ignore_low_stock===true);
   try{
     await sbUpdate('products',pid,{ignore_low_stock:newVal});
     p.ignore_low_stock=newVal;
     renderMgrDashboard();
-  } catch(e){ alert('Error: '+e.message); }
+  } catch(e){ alert('Toggle error: '+e.message); }
 }
 
 
 async function toggleIgnoreLowStock(pid){
-  const p=state.products.find(x=>x.id===pid); if(!p)return;
-  const newVal=!p.ignore_low_stock;
+  const p=state.products.find(x=>x.id===pid);
+  if(!p){ console.warn('Product not found:', pid); return; }
+  const newVal=!(p.ignore_low_stock===true);
   try{
     await sbUpdate('products',pid,{ignore_low_stock:newVal});
     p.ignore_low_stock=newVal;
     renderMgrDashboard();
-  } catch(e){ alert('Error: '+e.message); }
+  } catch(e){ alert('Toggle error: '+e.message); }
 }
 
 function renderKpi(){
