@@ -694,9 +694,17 @@ function renderMgrStock(filter){
   CAT_ORDER.forEach(cat=>{
     const group=prods.filter(p=>(p.category||'')===(cat||'')); if(!group.length)return;
     const c=CATS[cat]||CATS[''];
-    html+=`<div style="margin-bottom:1rem;"><div class="cat-group-header"><span class="cat-dot" style="background:${c.color}"></span>${cat||'Uncategorised'}</div><div class="card" style="padding:0;overflow:auto;margin-bottom:0;"><table><thead><tr><th>Product</th><th>Volume</th><th>SKU</th><th>In stock</th><th>Last buy cost</th><th>Retail price</th><th>Margin</th><th>Details</th></tr></thead><tbody>${group.map(p=>{ const qty=getStock(p.id); const last=getLastRetailPurchase(p.id); const retail=last?calcRetail(last):null; const margin=last?(last.margin||30):null; const hasDetails=p.spec||p.notes; const isLow=qty<=2&&!p.ignore_low_stock;
-const toggleSwitch=`<label title="${p.ignore_low_stock?'Re-enable low stock warning':'Ignore low stock warning'}" style="cursor:pointer;display:inline-flex;align-items:center;margin-left:5px;vertical-align:middle;" onclick="toggleIgnoreLowStock('${p.id}')"><span style="display:inline-block;width:24px;height:13px;border-radius:99px;background:${p.ignore_low_stock?'#639922':'rgba(128,128,128,0.3)'};position:relative;flex-shrink:0;"><span style="position:absolute;top:1.5px;left:${p.ignore_low_stock?'12px':'1.5px'};width:10px;height:10px;border-radius:50%;background:#fff;"></span></span></label>`;
-return `<tr><td>${catDot(p.category)}${p.name}</td><td>${volPill(p.volume)}</td><td style="font-size:12px;color:var(--text2);">${p.sku||'—'}</td><td class="${isLow?'low-stock':''}">${qty}${isLow?' <span onclick="toggleIgnoreLowStock(''+p.id+'')" style="cursor:pointer;" title="Click to ignore this warning">⚠</span>':''}${toggleSwitch}</td><td>${last?'€'+last.cost_per_unit.toFixed(2):'—'}</td><td>${retail?'€'+retail.toFixed(2):'—'}</td><td>${margin?margin.toFixed(1)+'%':'—'}</td><td>${hasDetails?`<button class="btn ghost" onclick="showDetails('${p.id}')">Details</button>`:'—'}</td></tr>`; }).join('')}</tbody></table></div></div>`;
+    html+=`<div style="margin-bottom:1rem;"><div class="cat-group-header"><span class="cat-dot" style="background:${c.color}"></span>${cat||'Uncategorised'}</div><div class="card" style="padding:0;overflow:auto;margin-bottom:0;"><table><thead><tr><th>Product</th><th>Volume</th><th>SKU</th><th>In stock</th><th>Last buy cost</th><th>Retail price</th><th>Margin</th><th>Details</th></tr></thead><tbody>${group.map(p=>{
+  const qty=getStock(p.id);
+  const last=getLastRetailPurchase(p.id);
+  const retail=last?calcRetail(last):null;
+  const margin=last?(last.margin||30):null;
+  const hasDetails=p.spec||p.notes;
+  const isLow=qty<=2&&!p.ignore_low_stock;
+  const sw='<span onclick="toggleIgnoreLowStock(\''+p.id+'')" style="cursor:pointer;display:inline-flex;align-items:center;margin-left:5px;vertical-align:middle;" title="'+(p.ignore_low_stock?'Re-enable low stock warning':'Ignore low stock warning')+'"><span style="display:inline-block;width:24px;height:13px;border-radius:99px;background:'+(p.ignore_low_stock?'#639922':'rgba(128,128,128,0.3)')+';position:relative;flex-shrink:0;"><span style="position:absolute;top:1.5px;left:'+(p.ignore_low_stock?'12px':'1.5px')+';width:10px;height:10px;border-radius:50%;background:#fff;"></span></span></span>';
+  const warn=isLow?'<span onclick="toggleIgnoreLowStock(\''+p.id+'')" style="cursor:pointer;" title="Click to ignore">⚠</span>':'';
+  return '<tr><td>'+catDot(p.category)+p.name+'</td><td>'+volPill(p.volume)+'</td><td style="font-size:12px;color:var(--text2);">'+(p.sku||'—')+'</td><td class="'+(isLow?'low-stock':'')+'">'+(qty)+' '+warn+sw+'</td><td>'+(last?'€'+last.cost_per_unit.toFixed(2):'—')+'</td><td>'+(retail?'€'+retail.toFixed(2):'—')+'</td><td>'+(margin?margin.toFixed(1)+'%':'—')+'</td><td>'+(hasDetails?'<button class="btn ghost" onclick="showDetails(\''+p.id+'\')">Details</button>':'—')+'</td></tr>';
+}).join('')}</tbody></table></div></div>`;
   });
   container.innerHTML=html;
 }
