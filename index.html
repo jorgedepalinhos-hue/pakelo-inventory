@@ -156,12 +156,6 @@ tr:last-child td{border-bottom:none;}
 <body>
 <div class="app">
 
-<!-- ══ CONFIG BANNER ══════════════════════════════════════ -->
-<div id="config-banner" class="show">
-  <i class="ti ti-alert-triangle"></i>
-  <strong>Setup required:</strong> Open this file and set your <code>SUPABASE_URL</code> and <code>SUPABASE_KEY</code> at the top of the &lt;script&gt; section. See the setup guide for instructions.
-</div>
-
 <!-- ══ ROLE SELECT ════════════════════════════════════════ -->
 <div class="screen active" id="screen-role">
   <div class="top-bar">
@@ -937,12 +931,7 @@ function runExport(){
 }
 
 // ── Init ──────────────────────────────────────────────
-if(!isConfigured()){
-  setSyncStatus('err','Not configured');
-} else {
-  document.getElementById('config-banner').classList.remove('show');
-  loadFromSupabase();
-}
+loadFromSupabase();
 </script>
 </body>
 </html>
