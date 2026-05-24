@@ -701,13 +701,13 @@ function renderMgrStock(filter){
   const margin=last?(last.margin||30):null;
   const hasDetails=p.spec||p.notes;
   const isLow=qty<=2&&!p.ignore_low_stock;
-  const bgColor=p.ignore_low_stock?'#639922':'rgba(128,128,128,0.3)';
-  const knobPos=p.ignore_low_stock?'12px':'1.5px';
-  const tipText=p.ignore_low_stock?'Re-enable low stock warning':'Ignore low stock warning';
-  const switchHtml='<span onclick="toggleIgnoreLowStock('+JSON.stringify(p.id)+')" title="'+tipText+'" style="cursor:pointer;display:inline-flex;align-items:center;margin-left:6px;vertical-align:middle;"><span style="display:inline-block;width:24px;height:13px;border-radius:99px;background:'+bgColor+';position:relative;flex-shrink:0;"><span style="position:absolute;top:1.5px;left:'+knobPos+';width:10px;height:10px;border-radius:50%;background:#fff;"></span></span></span>';
-  const warnHtml=isLow?('<span onclick="toggleIgnoreLowStock('+JSON.stringify(p.id)+')" style="cursor:pointer;" title="Click to ignore">⚠</span>'):'';
-  const stockCell='<td class="'+(isLow?'low-stock':'')+'">'+(qty)+' '+warnHtml+switchHtml+'</td>';
-  const detailBtn=hasDetails?('<button class="btn ghost" onclick="showDetails('+JSON.stringify(p.id)+')">Details</button>'):'—';
+  const pid=p.id;
+  const bg=p.ignore_low_stock?'#639922':'rgba(128,128,128,0.25)';
+  const kl=p.ignore_low_stock?'12px':'1.5px';
+  const sw='<span data-pid="'+pid+'" onclick="toggleIgnoreLowStock(this.dataset.pid)" style="cursor:pointer;display:inline-flex;align-items:center;margin-left:6px;vertical-align:middle;"><span style="pointer-events:none;display:inline-block;width:24px;height:13px;border-radius:99px;background:'+bg+';position:relative;flex-shrink:0;"><span style="pointer-events:none;position:absolute;top:1.5px;left:'+kl+';width:10px;height:10px;border-radius:50%;background:#fff;"></span></span></span>';
+  const warn=isLow?'<span data-pid="'+pid+'" onclick="toggleIgnoreLowStock(this.dataset.pid)" style="cursor:pointer;" title="Click to ignore">⚠</span>':'';
+  const stockCell='<td class="'+(isLow?'low-stock':'')+'">'+qty+' '+warn+sw+'</td>';
+  const detailBtn=hasDetails?'<button class="btn ghost" data-pid="'+pid+'" onclick="showDetails(this.dataset.pid)">Details</button>':'—';
   return '<tr>'
     +'<td>'+catDot(p.category)+p.name+'</td>'
     +'<td>'+volPill(p.volume)+'</td>'
