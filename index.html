@@ -153,6 +153,91 @@ tr:last-child td{border-bottom:none;}
 .sync-dot.err{background:#a32d2d;}
 .sync-dot.loading{background:#ba7517;animation:pulse 1s infinite;}
 @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+
+/* ── Mobile responsive (≤640px) ─────────────────────── */
+@media(max-width:640px){
+  .app{padding:.75rem .75rem;}
+
+  /* Top bar */
+  .top-bar h1{font-size:15px;}
+  .top-bar img{height:28px !important;}
+  .btn.export{font-size:12px;padding:6px 10px;}
+  .btn.small{font-size:11px;padding:4px 8px;}
+
+  /* Nav tabs — scrollable */
+  .nav-tabs{gap:0;-webkit-overflow-scrolling:touch;}
+  .tab{padding:8px 10px;font-size:12px;}
+
+  /* Metrics grid — 2 col on mobile */
+  .metrics-grid{grid-template-columns:1fr 1fr;gap:8px;}
+  .metric-card{padding:.65rem .75rem;}
+  .metric-card .value{font-size:17px;}
+  .metric-card .label{font-size:10px;}
+
+  /* Tables — hide less important cols, make key cols readable */
+  .card{padding:.75rem .75rem;}
+  table{font-size:12px;}
+  th,td{padding:6px 6px;}
+
+  /* Dashboard product table — hide Margin and Details on mobile */
+  #mgr-stock-grouped th:nth-child(7),
+  #mgr-stock-grouped td:nth-child(7),
+  #mgr-stock-grouped th:nth-child(8),
+  #mgr-stock-grouped td:nth-child(8){display:none;}
+
+  /* History tables — hide less critical cols */
+  #mgr-hist-body td:nth-child(10),
+  #mgr-hist-body td:nth-child(11),
+  #mgr-hist-body td:nth-child(12),
+  #mgr-hist-body th:nth-child(10),
+  #mgr-hist-body th:nth-child(11),
+  #mgr-hist-body th:nth-child(12){display:none;}
+
+  #sr-hist-body td:nth-child(7),
+  #sr-hist-body td:nth-child(8),
+  #sr-hist-body th:nth-child(7),
+  #sr-hist-body th:nth-child(8){display:none;}
+
+  /* Stock table — hide SKU on mobile */
+  #sr-stock-body td:nth-child(3),
+  #sr-stock-body th:nth-child(3){display:none;}
+
+  /* Forms */
+  .form-row{grid-template-columns:1fr !important;}
+  .form-row.three{grid-template-columns:1fr !important;}
+
+  /* Role select */
+  .role-select{flex-direction:column;align-items:center;gap:12px;}
+  .role-card{max-width:100%;width:100%;}
+
+  /* Cat legend wrap */
+  .cat-legend{gap:8px;}
+  .cat-legend-item{font-size:11px;}
+
+  /* Vol pill smaller */
+  .vol-pill{font-size:10px;padding:1px 5px;}
+
+  /* Cat group header */
+  .cat-group-header{font-size:11px;padding:8px 10px;}
+
+  /* Action buttons in tables */
+  .action-btns{gap:2px;}
+  .action-btns .btn{padding:3px 6px;font-size:11px;}
+
+  /* KPI charts */
+  .chart-wrap{height:160px !important;}
+
+  /* Pin screen */
+  .pin-screen{margin:1.5rem auto;}
+  .pin-key{height:46px;font-size:16px;}
+
+  /* Type toggles */
+  .type-toggle{gap:4px;}
+  .type-btn{font-size:11px;padding:7px 4px;}
+
+  /* Overflow tables scroll horizontally */
+  .card[style*="overflow:auto"]{-webkit-overflow-scrolling:touch;}
+}
 </style>
 </head>
 <body>
