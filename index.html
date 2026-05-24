@@ -1,0 +1,948 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pakelo Inventory</title>
+<link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.47.0/tabler-icons.min.css">
+<style>
+/* ── Reset & base ─────────────────────────────── */
+*{box-sizing:border-box;margin:0;padding:0;}
+:root{
+  --bg:#ffffff;--bg2:#f5f5f3;--bg3:#eeede9;
+  --text:#1a1a1a;--text2:#6b6b67;--text3:#9b9b97;
+  --border:rgba(0,0,0,0.12);--border2:rgba(0,0,0,0.22);
+  --success:#2d6a2d;--danger:#a32d2d;--info:#185fa5;--warning:#854f0b;
+  --bg-success:#eaf3de;--bg-danger:#fcebeb;--bg-info:#e6f1fb;--bg-warning:#faeeda;
+  --radius:8px;--radius-lg:12px;
+}
+@media(prefers-color-scheme:dark){
+  :root{
+    --bg:#1a1a1a;--bg2:#242424;--bg3:#2c2c2a;
+    --text:#f0f0ee;--text2:#a0a09c;--text3:#707070;
+    --border:rgba(255,255,255,0.12);--border2:rgba(255,255,255,0.22);
+  }
+}
+body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg3);color:var(--text);font-size:14px;line-height:1.5;min-height:100vh;}
+.app{max-width:1100px;margin:0 auto;padding:1.25rem 1rem;}
+.screen{display:none;}.screen.active{display:block;}
+
+/* ── Config banner ───────────────────────────── */
+#config-banner{background:var(--bg-warning);border:0.5px solid #EF9F27;border-radius:var(--radius);padding:10px 14px;margin-bottom:1rem;font-size:13px;color:var(--warning);display:none;}
+#config-banner.show{display:block;}
+
+/* ── Components ──────────────────────────────── */
+.top-bar{display:flex;align-items:center;justify-content:space-between;margin-bottom:1.5rem;padding-bottom:1rem;border-bottom:0.5px solid var(--border);}
+.top-bar h1{font-size:18px;font-weight:500;}
+.badge{font-size:12px;padding:3px 10px;border-radius:var(--radius);background:var(--bg2);color:var(--text2);border:0.5px solid var(--border);}
+.btn{cursor:pointer;padding:8px 16px;border-radius:var(--radius);font-size:13px;font-weight:500;border:0.5px solid var(--border2);background:transparent;color:var(--text);font-family:inherit;display:inline-flex;align-items:center;gap:6px;}
+.btn:hover{background:var(--bg2);}
+.btn.primary{background:var(--text);color:var(--bg);border-color:var(--text);}
+.btn.primary:hover{opacity:.85;}
+.btn.ghost{font-size:12px;padding:4px 8px;border-color:var(--border);color:var(--text2);}
+.btn.ghost:hover{background:var(--bg2);}
+.btn.danger{color:var(--danger);border-color:rgba(163,45,45,.4);font-size:12px;padding:4px 8px;}
+.btn.danger:hover{background:var(--bg-danger);}
+.btn.small{padding:5px 10px;font-size:12px;}
+.btn.export{background:#217346;color:#fff;border-color:#217346;}
+.btn.export:hover{opacity:.88;}
+.card{background:var(--bg);border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:1rem 1.25rem;margin-bottom:1rem;}
+.form-row{display:grid;grid-template-columns:1fr 1fr;gap:12px;margin-bottom:12px;}
+.form-row.three{grid-template-columns:1fr 1fr 1fr;}
+.form-group{display:flex;flex-direction:column;gap:4px;}
+.form-group label{font-size:12px;color:var(--text2);font-weight:500;}
+.form-group input,.form-group select,.form-group textarea{width:100%;border-radius:var(--radius);border:0.5px solid var(--border2);background:var(--bg);color:var(--text);font-size:13px;padding:7px 10px;font-family:inherit;}
+.form-group textarea{resize:vertical;min-height:58px;}
+.section-title{font-size:11px;font-weight:500;color:var(--text2);text-transform:uppercase;letter-spacing:.05em;margin-bottom:12px;}
+.metrics-grid{display:grid;grid-template-columns:repeat(auto-fit,minmax(120px,1fr));gap:10px;margin-bottom:1.5rem;}
+.metric-card{background:var(--bg2);border-radius:var(--radius);padding:.875rem 1rem;}
+.metric-card .label{font-size:11px;color:var(--text2);margin-bottom:4px;}
+.metric-card .value{font-size:20px;font-weight:500;}
+table{width:100%;border-collapse:collapse;font-size:13px;}
+th{text-align:left;padding:8px 10px;font-size:12px;font-weight:500;color:var(--text2);border-bottom:0.5px solid var(--border);white-space:nowrap;}
+td{padding:7px 10px;border-bottom:0.5px solid var(--border);vertical-align:middle;}
+tr:last-child td{border-bottom:none;}
+.tag{display:inline-block;font-size:11px;padding:2px 8px;border-radius:99px;font-weight:500;white-space:nowrap;}
+.tag.out{background:var(--bg-danger);color:var(--danger);}
+.tag.in{background:var(--bg-success);color:var(--success);}
+.tag.loss{background:var(--bg-warning);color:var(--warning);}
+.tag.sale{background:var(--bg-info);color:var(--info);}
+.vol-pill{display:inline-block;font-size:11px;padding:2px 7px;border-radius:99px;background:var(--bg2);color:var(--text2);border:0.5px solid var(--border);font-weight:500;margin-left:4px;}
+.cat-dot{display:inline-block;width:8px;height:8px;border-radius:50%;margin-right:5px;flex-shrink:0;vertical-align:middle;}
+.low-stock{color:var(--danger)!important;font-weight:500;}
+.empty-state{text-align:center;padding:2rem;color:var(--text2);}
+.action-btns{display:flex;gap:4px;white-space:nowrap;}
+.notes-cell{max-width:160px;font-size:12px;color:var(--text2);font-style:italic;white-space:normal;line-height:1.4;}
+.promo-badge{font-size:11px;padding:2px 7px;border-radius:99px;background:#EEEDFE;color:#3C3489;font-weight:500;margin-left:4px;}
+.divider{border:none;border-top:0.5px solid var(--border);margin:14px 0;}
+.success-msg{color:var(--success);font-size:13px;margin-top:8px;min-height:18px;text-align:center;}
+.error-msg{color:var(--danger);font-size:13px;margin-top:8px;min-height:18px;text-align:center;}
+.search-filter{width:100%;margin-bottom:12px;border-radius:var(--radius);border:0.5px solid var(--border2);background:var(--bg);color:var(--text);font-size:13px;padding:7px 10px;font-family:inherit;}
+.cat-legend{display:flex;flex-wrap:wrap;gap:10px;margin-bottom:14px;}
+.cat-legend-item{display:flex;align-items:center;gap:5px;font-size:12px;color:var(--text2);}
+.cat-group-header{font-size:12px;font-weight:500;padding:10px 12px 6px;color:var(--text2);background:var(--bg2);border-bottom:0.5px solid var(--border);display:flex;align-items:center;gap:6px;}
+.checkbox-row{display:flex;align-items:center;gap:8px;margin:10px 0 6px;}
+.checkbox-row input[type=checkbox]{width:16px;height:16px;cursor:pointer;}
+.checkbox-row label{font-size:13px;cursor:pointer;}
+.sale-price-hint{font-size:11px;color:var(--text2);margin-top:3px;min-height:14px;}
+.collapsible-header{display:flex;align-items:center;justify-content:space-between;cursor:pointer;padding:6px 0;user-select:none;}
+.collapsible-header span{font-size:11px;color:var(--text2);font-weight:500;text-transform:uppercase;letter-spacing:.05em;}
+.collapsible-header .chevron{font-size:14px;color:var(--text3);transition:transform .2s;}
+.collapsible-header.open .chevron{transform:rotate(180deg);}
+.collapsible-body{margin-top:10px;}
+
+/* ── Nav tabs ─────────────────────────────────── */
+.nav-tabs{display:flex;gap:0;margin-bottom:1.5rem;border-bottom:0.5px solid var(--border);overflow-x:auto;}
+.tab{padding:8px 13px;font-size:13px;cursor:pointer;border-bottom:2px solid transparent;color:var(--text2);background:none;border-top:none;border-left:none;border-right:none;font-family:inherit;white-space:nowrap;}
+.tab.active{color:var(--text);border-bottom-color:var(--text);font-weight:500;}
+
+/* ── Role select ──────────────────────────────── */
+.role-select{display:flex;gap:12px;justify-content:center;margin:2.5rem 0;}
+.role-card{flex:1;max-width:210px;border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:1.5rem 1rem;text-align:center;cursor:pointer;background:var(--bg);}
+.role-card:hover{border-color:var(--border2);background:var(--bg2);}
+.role-card .icon{font-size:28px;color:var(--text2);margin-bottom:10px;}
+.role-card h3{font-size:15px;font-weight:500;margin-bottom:4px;}
+.role-card p{font-size:12px;color:var(--text2);}
+
+/* ── PIN ──────────────────────────────────────── */
+.pin-screen{max-width:280px;margin:2.5rem auto;text-align:center;}
+.pin-screen h2{font-size:18px;font-weight:500;margin-bottom:6px;}
+.pin-screen p{font-size:14px;color:var(--text2);margin-bottom:1.5rem;}
+.pin-dots{display:flex;justify-content:center;gap:12px;margin-bottom:1.5rem;}
+.pin-dot{width:14px;height:14px;border-radius:50%;border:1.5px solid var(--border2);background:transparent;}
+.pin-dot.filled{background:var(--text);border-color:var(--text);}
+.pin-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
+.pin-key{height:52px;border-radius:var(--radius);border:0.5px solid var(--border);background:transparent;font-size:18px;font-weight:500;cursor:pointer;color:var(--text);font-family:inherit;}
+.pin-key:hover{background:var(--bg2);}
+.pin-error{color:var(--danger);font-size:13px;margin-top:10px;min-height:18px;}
+
+/* ── Product search dropdown ──────────────────── */
+.prod-search-wrap{position:relative;}
+.prod-dropdown{position:absolute;top:100%;left:0;right:0;background:var(--bg);border:0.5px solid var(--border2);border-radius:var(--radius);max-height:220px;overflow-y:auto;z-index:200;margin-top:2px;box-shadow:0 4px 16px rgba(0,0,0,0.12);}
+.prod-option{padding:9px 12px;font-size:13px;cursor:pointer;border-bottom:0.5px solid var(--border);color:var(--text);display:flex;align-items:center;gap:8px;}
+.prod-option:last-child{border-bottom:none;}
+.prod-option:hover{background:var(--bg2);}
+.prod-option .sub{font-size:11px;color:var(--text2);margin-top:1px;}
+.selected-prod{font-size:12px;color:var(--text2);margin-top:4px;min-height:16px;}
+
+/* ── Type toggles ─────────────────────────────── */
+.type-toggle{display:flex;gap:6px;margin-bottom:14px;flex-wrap:wrap;}
+.type-btn{flex:1;min-width:80px;padding:8px 6px;border-radius:var(--radius);border:0.5px solid var(--border);background:transparent;font-size:12px;font-weight:500;cursor:pointer;color:var(--text2);font-family:inherit;text-align:center;}
+.type-btn:hover{background:var(--bg2);}
+.type-btn.t-out{background:var(--bg-danger);border-color:#f09595;color:var(--danger);}
+.type-btn.t-in{background:var(--bg-success);border-color:#97c459;color:var(--success);}
+.type-btn.t-sale{background:var(--bg-info);border-color:#85b7eb;color:var(--info);}
+.type-btn.t-loss{background:var(--bg-warning);border-color:#ef9f27;color:var(--warning);}
+
+/* ── Modal ────────────────────────────────────── */
+.modal-bg{position:fixed;inset:0;background:rgba(0,0,0,0.4);display:flex;align-items:flex-start;justify-content:center;padding-top:40px;z-index:500;}
+.modal-box{background:var(--bg);border-radius:var(--radius-lg);border:0.5px solid var(--border2);padding:1.25rem;width:100%;max-width:580px;max-height:85vh;overflow-y:auto;}
+.modal-box h3{font-size:15px;font-weight:500;margin-bottom:1rem;}
+.modal-hidden{display:none;}
+
+/* ── KPI ──────────────────────────────────────── */
+.kpi-section{margin-bottom:1.5rem;}
+.kpi-section-title{font-size:13px;font-weight:500;margin-bottom:10px;padding-bottom:6px;border-bottom:0.5px solid var(--border);}
+.chart-wrap{position:relative;width:100%;}
+
+/* ── Sync indicator ──────────────────────────── */
+.sync-dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:5px;}
+.sync-dot.ok{background:#2d6a2d;}
+.sync-dot.err{background:#a32d2d;}
+.sync-dot.loading{background:#ba7517;animation:pulse 1s infinite;}
+@keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
+</style>
+</head>
+<body>
+<div class="app">
+
+<!-- ══ CONFIG BANNER ══════════════════════════════════════ -->
+<div id="config-banner" class="show">
+  <i class="ti ti-alert-triangle"></i>
+  <strong>Setup required:</strong> Open this file and set your <code>SUPABASE_URL</code> and <code>SUPABASE_KEY</code> at the top of the &lt;script&gt; section. See the setup guide for instructions.
+</div>
+
+<!-- ══ ROLE SELECT ════════════════════════════════════════ -->
+<div class="screen active" id="screen-role">
+  <div class="top-bar">
+    <h1>Pakelo inventory</h1>
+    <div id="sync-status" style="font-size:12px;color:var(--text2);display:flex;align-items:center;gap:4px;">
+      <span class="sync-dot loading" id="sync-dot"></span><span id="sync-label">Connecting…</span>
+    </div>
+  </div>
+  <p style="font-size:14px;color:var(--text2);margin-bottom:.5rem;">Select your role to continue.</p>
+  <div class="role-select">
+    <div class="role-card" onclick="goStockroom()">
+      <div class="icon"><i class="ti ti-package"></i></div>
+      <h3>Stockroom</h3><p>Log movements, view stock</p>
+    </div>
+    <div class="role-card" onclick="goPin()">
+      <div class="icon"><i class="ti ti-chart-bar"></i></div>
+      <h3>Manager</h3><p>Full dashboard, pricing, KPIs</p>
+    </div>
+  </div>
+</div>
+
+<!-- ══ PIN ════════════════════════════════════════════════ -->
+<div class="screen" id="screen-pin">
+  <div class="pin-screen">
+    <h2>Manager access</h2><p>Enter your 4-digit PIN</p>
+    <div class="pin-dots" id="pin-dots">
+      <div class="pin-dot" id="dot-0"></div><div class="pin-dot" id="dot-1"></div>
+      <div class="pin-dot" id="dot-2"></div><div class="pin-dot" id="dot-3"></div>
+    </div>
+    <div class="pin-pad">
+      <button class="pin-key" onclick="pinKey('1')">1</button><button class="pin-key" onclick="pinKey('2')">2</button><button class="pin-key" onclick="pinKey('3')">3</button>
+      <button class="pin-key" onclick="pinKey('4')">4</button><button class="pin-key" onclick="pinKey('5')">5</button><button class="pin-key" onclick="pinKey('6')">6</button>
+      <button class="pin-key" onclick="pinKey('7')">7</button><button class="pin-key" onclick="pinKey('8')">8</button><button class="pin-key" onclick="pinKey('9')">9</button>
+      <button class="pin-key" onclick="pinClear()"><i class="ti ti-backspace"></i></button>
+      <button class="pin-key" onclick="pinKey('0')">0</button>
+      <button class="pin-key" onclick="goRole()" style="font-size:12px;">Back</button>
+    </div>
+    <div class="pin-error" id="pin-error"></div>
+  </div>
+</div>
+
+<!-- ══ STOCKROOM ══════════════════════════════════════════ -->
+<div class="screen" id="screen-stockroom">
+  <div class="top-bar">
+    <h1>Stockroom</h1>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <span class="badge">Stockroom view</span>
+      <button class="btn small" onclick="goRole()">Switch role</button>
+    </div>
+  </div>
+  <div class="nav-tabs">
+    <button class="tab active" id="sr-tab-log" onclick="srTab('log',this)">Log movement</button>
+    <button class="tab" id="sr-tab-stock" onclick="srTab('stock',this)">Current stock</button>
+    <button class="tab" id="sr-tab-history" onclick="srTab('history',this)">History</button>
+  </div>
+
+  <div id="sr-log">
+    <div class="card">
+      <div class="section-title">Movement type</div>
+      <div class="type-toggle">
+        <button class="type-btn t-out" id="sr-t-out" onclick="setSrType('out')"><i class="ti ti-arrow-up-right"></i> Removal</button>
+        <button class="type-btn" id="sr-t-in" onclick="setSrType('in')" style="opacity:.5;font-size:11px;"><i class="ti ti-arrow-down-left"></i> Stock in (correction)</button>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Date</label><input type="date" id="sr-date"></div>
+        <div class="form-group"><label id="sr-person-lbl">Customer / person</label><input type="text" id="sr-person" placeholder="e.g. João Silva"></div>
+      </div>
+      <div class="form-group" style="margin-bottom:12px;">
+        <label>Product</label>
+        <div class="prod-search-wrap"><input type="text" id="sr-search" placeholder="Search by name or SKU…" oninput="filterProds('sr')" onfocus="showDd('sr')" autocomplete="off"><div class="prod-dropdown" id="sr-dd" style="display:none;"></div></div>
+        <div class="selected-prod" id="sr-sel">No product selected</div>
+      </div>
+      <div class="form-group" style="margin-bottom:12px;"><label>Quantity (cans)</label><input type="number" id="sr-qty" min="1" value="1" style="max-width:160px;"></div>
+      <hr class="divider">
+      <div class="form-row">
+        <div class="form-group"><label>Submitted by <span style="font-weight:400;color:var(--text3);">(optional)</span></label><input type="text" id="sr-submitter" placeholder="e.g. Ana"></div>
+        <div class="form-group"><label>Notes <span style="font-weight:400;color:var(--text3);">(optional)</span></label><input type="text" id="sr-notes" placeholder="Any notes"></div>
+      </div>
+      <button class="btn primary" onclick="logSr()" style="width:100%;margin-top:4px;justify-content:center;">Log movement</button>
+      <div class="success-msg" id="sr-success"></div>
+      <div class="error-msg" id="sr-error"></div>
+    </div>
+  </div>
+
+  <div id="sr-stock" style="display:none;">
+    <div class="cat-legend" id="sr-cat-legend"></div>
+    <input class="search-filter" type="text" placeholder="Filter products…" oninput="renderSrStock(this.value)">
+    <div class="card" style="padding:0;overflow:auto;"><table><thead><tr><th>Product</th><th>Volume</th><th>SKU</th><th>In stock</th></tr></thead><tbody id="sr-stock-body"></tbody></table></div>
+  </div>
+
+  <div id="sr-history" style="display:none;">
+    <input class="search-filter" type="text" placeholder="Filter…" oninput="renderSrHistory(this.value)">
+    <div class="card" style="padding:0;overflow:auto;">
+      <table><thead><tr><th>Date</th><th>Type</th><th>Product</th><th>Vol</th><th>Qty</th><th>Customer</th><th>Submitted by</th><th>Notes</th><th></th></tr></thead>
+      <tbody id="sr-hist-body"></tbody></table>
+    </div>
+  </div>
+</div>
+
+<!-- ══ MANAGER ════════════════════════════════════════════ -->
+<div class="screen" id="screen-manager">
+  <div class="top-bar">
+    <h1>Manager</h1>
+    <div style="display:flex;gap:8px;align-items:center;">
+      <span class="badge">Manager</span>
+      <button class="btn export" onclick="runExport()"><i class="ti ti-download"></i> Export Excel</button>
+      <button class="btn small" onclick="goRole()">Switch role</button>
+    </div>
+  </div>
+  <div class="nav-tabs">
+    <button class="tab active" onclick="mgrTab('dashboard',this)">Dashboard</button>
+    <button class="tab" onclick="mgrTab('kpi',this)">KPIs</button>
+    <button class="tab" onclick="mgrTab('movements',this)">Log movement</button>
+    <button class="tab" onclick="mgrTab('purchase',this)">Log purchase</button>
+    <button class="tab" onclick="mgrTab('history',this)">All movements</button>
+    <button class="tab" onclick="mgrTab('products',this)">Products</button>
+  </div>
+
+  <!-- Dashboard -->
+  <div id="mgr-dashboard">
+    <div class="metrics-grid" id="mgr-metrics"></div>
+    <div class="cat-legend" id="mgr-dash-legend"></div>
+    <input class="search-filter" type="text" placeholder="Filter products…" oninput="renderMgrStock(this.value)">
+    <div id="mgr-stock-grouped"></div>
+  </div>
+
+  <!-- KPIs -->
+  <div id="mgr-kpi" style="display:none;">
+    <div class="kpi-section"><div class="kpi-section-title">Revenue & margin</div><div class="metrics-grid" id="kpi-revenue"></div></div>
+    <div class="kpi-section"><div class="kpi-section-title">Stock health</div><div class="metrics-grid" id="kpi-stock"></div></div>
+    <div class="kpi-section"><div class="kpi-section-title">Sales activity</div><div class="metrics-grid" id="kpi-sales"></div></div>
+    <div class="kpi-section">
+      <div class="kpi-section-title">Units sold by category</div>
+      <div id="kpi-cat-legend" class="cat-legend" style="margin-bottom:8px;"></div>
+      <div class="chart-wrap" style="height:200px;"><canvas id="chart-cat" role="img" aria-label="Units sold by category">Units sold by category.</canvas></div>
+    </div>
+    <div class="kpi-section">
+      <div class="kpi-section-title">Monthly movements</div>
+      <div class="chart-wrap" style="height:200px;"><canvas id="chart-monthly" role="img" aria-label="Monthly movements">Monthly movements.</canvas></div>
+    </div>
+    <div class="kpi-section">
+      <div class="kpi-section-title">Top products by units sold</div>
+      <div class="card" style="padding:0;overflow:auto;"><table><thead><tr><th>Product</th><th>Vol</th><th>Category</th><th>Units sold</th><th>Revenue</th><th>Losses</th></tr></thead><tbody id="kpi-top"></tbody></table></div>
+    </div>
+  </div>
+
+  <!-- Log movement -->
+  <div id="mgr-movements" style="display:none;">
+    <div class="card">
+      <div class="section-title">Log stock movement</div>
+      <div class="type-toggle">
+        <button class="type-btn t-sale" id="mgr-t-sale" onclick="setMgrType('sale')"><i class="ti ti-receipt"></i> Sale</button>
+        <button class="type-btn" id="mgr-t-out" onclick="setMgrType('out')"><i class="ti ti-arrow-up-right"></i> Manual removal</button>
+        <button class="type-btn" id="mgr-t-loss" onclick="setMgrType('loss')"><i class="ti ti-alert-triangle"></i> Loss / breakage</button>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>Date</label><input type="date" id="mgr-mov-date"></div>
+        <div class="form-group"><label id="mgr-mov-person-lbl">Customer</label><input type="text" id="mgr-mov-person" placeholder="e.g. Oficina Central"></div>
+      </div>
+      <div class="form-group" style="margin-bottom:12px;">
+        <label>Product</label>
+        <div class="prod-search-wrap"><input type="text" id="mgr-mov-search" placeholder="Search by name or SKU…" oninput="filterProds('mgr-mov')" onfocus="showDd('mgr-mov')" autocomplete="off"><div class="prod-dropdown" id="mgr-mov-dd" style="display:none;"></div></div>
+        <div class="selected-prod" id="mgr-mov-sel">No product selected</div>
+      </div>
+      <div class="form-row" id="mgr-sale-price-row" style="display:none;">
+        <div class="form-group">
+          <label>Sale price / can (€)</label>
+          <input type="number" id="mgr-sale-price" step="0.01" placeholder="0.00">
+          <div class="sale-price-hint" id="mgr-sale-price-hint"></div>
+        </div>
+        <div class="form-group"><label>Quantity (cans)</label><input type="number" id="mgr-mov-qty" min="1" value="1"></div>
+      </div>
+      <div class="form-group" id="mgr-qty-row" style="margin-bottom:12px;"><label>Quantity (cans)</label><input type="number" id="mgr-mov-qty-b" min="1" value="1" style="max-width:160px;"></div>
+      <hr class="divider">
+      <div class="form-row">
+        <div class="form-group"><label>Submitted by <span style="font-weight:400;color:var(--text3);">(optional)</span></label><input type="text" id="mgr-mov-submitter" placeholder="e.g. Jorge"></div>
+        <div class="form-group"><label>Notes <span style="font-weight:400;color:var(--text3);">(optional)</span></label><input type="text" id="mgr-mov-notes" placeholder="Any notes"></div>
+      </div>
+      <button class="btn primary" onclick="logMgrMov()" style="width:100%;margin-top:4px;justify-content:center;">Log movement</button>
+      <div class="success-msg" id="mgr-mov-success"></div>
+      <div class="error-msg" id="mgr-mov-error"></div>
+    </div>
+  </div>
+
+  <!-- Log purchase -->
+  <div id="mgr-purchase" style="display:none;">
+    <div class="card">
+      <div class="section-title">Incoming stock from supplier</div>
+      <div class="form-row">
+        <div class="form-group"><label>Invoice date</label><input type="date" id="mgr-date"></div>
+        <div class="form-group"><label>Invoice / ref</label><input type="text" id="mgr-invoice" placeholder="e.g. INV-2024-001"></div>
+      </div>
+      <div class="form-group" style="margin-bottom:12px;">
+        <label>Product</label>
+        <div class="prod-search-wrap"><input type="text" id="mgr-search" placeholder="Search by name or SKU…" oninput="filterProds('mgr')" onfocus="showDd('mgr')" autocomplete="off"><div class="prod-dropdown" id="mgr-dd" style="display:none;"></div></div>
+        <div class="selected-prod" id="mgr-sel">No product selected</div>
+      </div>
+      <div class="form-row three">
+        <div class="form-group"><label>Quantity (cans)</label><input type="number" id="mgr-qty" min="1" value="1"></div>
+        <div class="form-group"><label>Cost paid / can (€)</label><input type="number" id="mgr-cost" step="0.01" placeholder="0.00" oninput="updatePurchasePreview()"></div>
+        <div class="form-group"><label>Desired margin (%)</label><input type="number" id="mgr-margin" step="1" value="30" oninput="updatePurchasePreview()"></div>
+      </div>
+      <div id="mgr-price-preview" style="font-size:13px;color:var(--text2);margin-bottom:10px;padding:6px 10px;background:var(--bg2);border-radius:var(--radius);display:none;"></div>
+      <div class="checkbox-row">
+        <input type="checkbox" id="mgr-promo" onchange="updatePurchasePreview()">
+        <label for="mgr-promo">Promotional / free stock — use normal retail price, not this cost</label>
+      </div>
+      <div id="mgr-promo-note" style="font-size:12px;color:#3C3489;margin-bottom:10px;display:none;padding:6px 10px;background:#EEEDFE;border-radius:var(--radius);">Retail pricing will use the last non-promotional purchase price for this product.</div>
+      <button class="btn primary" onclick="logPurchase()" style="width:100%;margin-top:4px;justify-content:center;">Log purchase</button>
+      <div class="success-msg" id="mgr-success"></div>
+      <div class="error-msg" id="mgr-error"></div>
+    </div>
+  </div>
+
+  <!-- All movements -->
+  <div id="mgr-history" style="display:none;">
+    <input class="search-filter" type="text" placeholder="Filter…" oninput="renderMgrHistory(this.value)">
+    <div class="card" style="padding:0;overflow:auto;">
+      <table><thead><tr><th>Date</th><th>Type</th><th>Product</th><th>Vol</th><th>Qty</th><th>Customer</th><th>Sale price</th><th>Cost/unit</th><th>Retail</th><th>Submitted by</th><th>Notes</th><th>Invoice</th><th></th></tr></thead>
+      <tbody id="mgr-hist-body"></tbody></table>
+    </div>
+  </div>
+
+  <!-- Products -->
+  <div id="mgr-products" style="display:none;">
+    <div class="card">
+      <div class="section-title">Add new product</div>
+      <div class="form-row">
+        <div class="form-group"><label>Product name</label><input type="text" id="prod-name" placeholder="e.g. Pakelo Krypton XT 5W-40"></div>
+        <div class="form-group"><label>Volume</label><select id="prod-vol"><option value="1L">1L</option><option value="4L" selected>4L</option><option value="5L">5L</option><option value="20L">20L</option><option value="60L">60L</option><option value="208L">208L</option></select></div>
+      </div>
+      <div class="form-row">
+        <div class="form-group"><label>SKU / reference</label><input type="text" id="prod-sku" placeholder="e.g. 4441.84.41"></div>
+        <div class="form-group"><label>Category</label>
+          <select id="prod-cat"><option value="">Select category…</option><option value="Engine oil">Engine oil</option><option value="Gearbox / diff oil">Gearbox / diff oil</option><option value="Brake fluid">Brake fluid</option><option value="Steering / hydraulic fluid">Steering / hydraulic fluid</option><option value="Coolant">Coolant</option></select>
+        </div>
+      </div>
+      <div class="collapsible-header" onclick="toggleCollapsible(this)" style="margin-bottom:4px;"><span>Details (specs, notes)</span><i class="ti ti-chevron-down chevron"></i></div>
+      <div class="collapsible-body" style="display:none;">
+        <div class="form-group" style="margin-bottom:8px;"><label>Oil spec / description</label><textarea id="prod-spec" placeholder="e.g. ACEA C3, API SN+, VW 504.00/507.00…"></textarea></div>
+        <div class="form-group"><label>Notes</label><textarea id="prod-notes" placeholder="Any other notes"></textarea></div>
+      </div>
+      <button class="btn primary" style="margin-top:10px;" onclick="addProduct()">Add product</button>
+      <div class="success-msg" id="prod-success"></div>
+      <div class="error-msg" id="prod-error"></div>
+    </div>
+    <input class="search-filter" type="text" placeholder="Filter products…" oninput="renderProductList(this.value)">
+    <div id="prod-list-grouped"></div>
+  </div>
+</div>
+
+<!-- ══ MODALS ═════════════════════════════════════════════ -->
+<div id="edit-prod-modal" class="modal-hidden"></div>
+<div id="edit-mov-modal" class="modal-hidden"></div>
+
+<!-- ══ SCRIPTS ═══════════════════════════════════════════ -->
+<script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
+<script src="https://cdnjs.cloudflare.com/ajax/libs/xlsx/0.18.5/xlsx.full.min.js"></script>
+<script>
+// ════════════════════════════════════════════════════════
+//  ⚙️  CONFIGURATION — edit these two values
+// ════════════════════════════════════════════════════════
+const SUPABASE_URL = 'https://tjzrgxgafyxylpdzmfbx.supabase.co/rest/v1/';   // e.g. https://abcdefgh.supabase.co
+const SUPABASE_KEY = 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqenJneGdhZnl4eWxwZHptZmJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1NzAxNjgsImV4cCI6MjA5NTE0NjE2OH0.FU3CN_nZoaQA15tpUqSQsKkoSBvDcQN2Ui6YK90t-F8'; // the long anon/public key
+const MANAGER_PIN  = '1999';               // change to your preferred PIN
+// ════════════════════════════════════════════════════════
+
+const CATS = {
+  'Engine oil':                {color:'#378ADD',light:'#E6F1FB',text:'#0C447C'},
+  'Gearbox / diff oil':        {color:'#639922',light:'#EAF3DE',text:'#27500A'},
+  'Brake fluid':               {color:'#E24B4A',light:'#FCEBEB',text:'#791F1F'},
+  'Steering / hydraulic fluid':{color:'#BA7517',light:'#FAEEDA',text:'#633806'},
+  'Coolant':                   {color:'#1D9E75',light:'#E1F5EE',text:'#085041'},
+  '':                          {color:'#888780',light:'#F1EFE8',text:'#444441'}
+};
+const CAT_ORDER = ['Engine oil','Gearbox / diff oil','Brake fluid','Steering / hydraulic fluid','Coolant',''];
+const TYPE_LABELS = {in:'Purchase',out:'Removal',sale:'Sale',loss:'Loss / Breakage'};
+
+let state = {products:[], movements:[]};
+let selected = {sr:null,'mgr-mov':null,mgr:null};
+let srType='out', mgrType='sale';
+let pinBuffer='';
+let charts={};
+let supabaseOk = false;
+let currentSrHistFilter='', currentMgrHistFilter='';
+
+// ── Supabase helpers ──────────────────────────────────
+const isConfigured = () => SUPABASE_URL !== 'https://tjzrgxgafyxylpdzmfbx.supabase.co/rest/v1/' && SUPABASE_KEY !== 'eyJhbGciOiJIUzI1NiIsInR5cCI6IkpXVCJ9.eyJpc3MiOiJzdXBhYmFzZSIsInJlZiI6InRqenJneGdhZnl4eWxwZHptZmJ4Iiwicm9sZSI6ImFub24iLCJpYXQiOjE3Nzk1NzAxNjgsImV4cCI6MjA5NTE0NjE2OH0.FU3CN_nZoaQA15tpUqSQsKkoSBvDcQN2Ui6YK90t-F8';
+
+async function sbFetch(path, opts={}){
+  const res = await fetch(SUPABASE_URL + '/rest/v1/' + path, {
+    headers:{
+      'apikey': SUPABASE_KEY,
+      'Authorization': 'Bearer ' + SUPABASE_KEY,
+      'Content-Type': 'application/json',
+      'Prefer': opts.prefer || 'return=representation',
+      ...(opts.headers||{})
+    },
+    ...opts
+  });
+  if(!res.ok){
+    const err = await res.text();
+    throw new Error(err);
+  }
+  const text = await res.text();
+  return text ? JSON.parse(text) : null;
+}
+
+async function loadFromSupabase(){
+  setSyncStatus('loading','Syncing…');
+  try{
+    const [products, movements] = await Promise.all([
+      sbFetch('products?order=category,name'),
+      sbFetch('movements?order=date.desc')
+    ]);
+    state.products = products || [];
+    state.movements = movements || [];
+    supabaseOk = true;
+    setSyncStatus('ok','Live');
+    if(isConfigured()) document.getElementById('config-banner').classList.remove('show');
+  } catch(e){
+    supabaseOk = false;
+    setSyncStatus('err','Offline — using local cache');
+    const cached = localStorage.getItem('pakelo-cache');
+    if(cached){ const c=JSON.parse(cached); state.products=c.products||[]; state.movements=c.movements||[]; }
+  }
+  saveLocalCache();
+}
+
+async function sbInsert(table, data){
+  const row = await sbFetch(table, {method:'POST', body:JSON.stringify(data)});
+  saveLocalCache();
+  return Array.isArray(row) ? row[0] : row;
+}
+
+async function sbUpdate(table, id, data){
+  await sbFetch(`${table}?id=eq.${id}`, {method:'PATCH', body:JSON.stringify(data), prefer:'return=minimal'});
+  saveLocalCache();
+}
+
+async function sbDelete(table, id){
+  await sbFetch(`${table}?id=eq.${id}`, {method:'DELETE', prefer:'return=minimal'});
+  saveLocalCache();
+}
+
+function saveLocalCache(){
+  localStorage.setItem('pakelo-cache', JSON.stringify({products:state.products, movements:state.movements}));
+}
+
+function setSyncStatus(status, label){
+  const dot = document.getElementById('sync-dot');
+  const lbl = document.getElementById('sync-label');
+  dot.className = 'sync-dot ' + status;
+  lbl.textContent = label;
+}
+
+// ── UI helpers ────────────────────────────────────────
+function show(id){ document.querySelectorAll('.screen').forEach(s=>s.classList.remove('active')); document.getElementById(id).classList.add('active'); }
+function today(){ return new Date().toISOString().split('T')[0]; }
+function esc(s){ return String(s||'').replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;').replace(/"/g,'&quot;'); }
+function dash(v){ return v!=null&&v!==''?v:'<span style="color:var(--text3);font-size:12px;">—</span>'; }
+function noteCell(n){ return n?`<span class="notes-cell">${esc(n)}</span>`:dash(null); }
+function goRole(){ pinBuffer=''; updateDots(); show('screen-role'); loadFromSupabase(); }
+function goPin(){ pinBuffer=''; updateDots(); document.getElementById('pin-error').textContent=''; show('screen-pin'); }
+
+function goStockroom(){
+  selected.sr=null;
+  document.getElementById('sr-search').value='';
+  document.getElementById('sr-sel').textContent='No product selected';
+  document.getElementById('sr-date').value=today();
+  setSrType('out');
+  show('screen-stockroom');
+  srTab('log',document.getElementById('sr-tab-log'));
+}
+
+function pinKey(k){
+  if(pinBuffer.length>=4)return;
+  pinBuffer+=k; updateDots();
+  if(pinBuffer.length===4){
+    setTimeout(()=>{
+      if(pinBuffer===MANAGER_PIN){
+        document.getElementById('pin-error').textContent='';
+        selected.mgr=null; selected['mgr-mov']=null;
+        ['mgr-search','mgr-mov-search'].forEach(id=>document.getElementById(id).value='');
+        ['mgr-sel','mgr-mov-sel'].forEach(id=>document.getElementById(id).textContent='No product selected');
+        document.getElementById('mgr-date').value=today();
+        document.getElementById('mgr-mov-date').value=today();
+        setMgrType('sale');
+        renderMgrDashboard();
+        show('screen-manager');
+        mgrTab('dashboard',document.querySelector('#screen-manager .tab'));
+      } else {
+        document.getElementById('pin-error').textContent='Incorrect PIN. Try again.';
+        pinBuffer=''; updateDots();
+      }
+    },120);
+  }
+}
+function pinClear(){ pinBuffer=pinBuffer.slice(0,-1); updateDots(); }
+function updateDots(){ for(let i=0;i<4;i++) document.getElementById('dot-'+i).classList.toggle('filled',i<pinBuffer.length); }
+
+function srTab(t,el){
+  ['log','stock','history'].forEach(x=>document.getElementById('sr-'+x).style.display=x===t?'':'none');
+  document.querySelectorAll('#screen-stockroom .tab').forEach(b=>b.classList.remove('active'));
+  if(el)el.classList.add('active');
+  if(t==='stock'){ renderCatLegend('sr-cat-legend'); renderSrStock(''); }
+  if(t==='history') renderSrHistory('');
+}
+
+function mgrTab(t,el){
+  ['dashboard','kpi','movements','purchase','history','products'].forEach(x=>document.getElementById('mgr-'+x).style.display=x===t?'':'none');
+  document.querySelectorAll('#screen-manager .tab').forEach(b=>b.classList.remove('active'));
+  if(el)el.classList.add('active');
+  if(t==='dashboard') renderMgrDashboard();
+  if(t==='kpi') renderKpi();
+  if(t==='history') renderMgrHistory('');
+  if(t==='products') renderProductList('');
+}
+
+function setSrType(type){
+  srType=type;
+  ['out','in'].forEach(t=>{
+    const b=document.getElementById('sr-t-'+t);
+    b.className='type-btn'+(t===type?' t-'+t:'');
+    b.style.opacity=t===type?'1':'0.5';
+    b.style.fontSize=t==='in'&&type!=='in'?'11px':'';
+  });
+  document.getElementById('sr-person-lbl').textContent=type==='out'?'Customer / person':'Reason / note';
+  document.getElementById('sr-person').placeholder=type==='out'?'e.g. João Silva':'e.g. Stock correction';
+}
+
+function setMgrType(type){
+  mgrType=type;
+  ['sale','out','loss'].forEach(t=>{const b=document.getElementById('mgr-t-'+t);b.className='type-btn'+(t===type?' t-'+t:'');});
+  const lbls={sale:'Customer',out:'Person / reason',loss:'Reason'};
+  const phs={sale:'e.g. Oficina Central',out:'e.g. Internal use',loss:'e.g. Broken bottle'};
+  document.getElementById('mgr-mov-person-lbl').textContent=lbls[type];
+  document.getElementById('mgr-mov-person').placeholder=phs[type];
+  const isSale=type==='sale';
+  document.getElementById('mgr-sale-price-row').style.display=isSale?'grid':'none';
+  document.getElementById('mgr-qty-row').style.display=isSale?'none':'block';
+  if(isSale&&selected['mgr-mov']) populateSalePrice(selected['mgr-mov']);
+}
+
+function populateSalePrice(prod){
+  const last=getLastRetailPurchase(prod.id);
+  const retail=last?calcRetail(last):null;
+  const inp=document.getElementById('mgr-sale-price');
+  const hint=document.getElementById('mgr-sale-price-hint');
+  if(retail){ inp.value=retail.toFixed(2); hint.textContent='Suggested retail — edit if needed'; hint.style.color='var(--success)'; }
+  else { inp.value=''; hint.textContent='No purchase price recorded yet'; hint.style.color='var(--text2)'; }
+}
+
+function toggleCollapsible(header){
+  header.classList.toggle('open');
+  const body=header.nextElementSibling;
+  body.style.display=body.style.display==='none'?'block':'none';
+}
+
+// ── Category helpers ──────────────────────────────────
+function catDot(cat){ const c=CATS[cat]||CATS[''];return `<span class="cat-dot" style="background:${c.color}"></span>`; }
+function catPill(cat){ const c=CATS[cat]||CATS[''];return `<span style="font-size:11px;padding:2px 7px;border-radius:99px;background:${c.light};color:${c.text};font-weight:500;">${cat||'—'}</span>`; }
+function volPill(vol){ return `<span class="vol-pill">${vol||'?'}</span>`; }
+
+function renderCatLegend(id){
+  const el=document.getElementById(id); if(!el)return;
+  el.innerHTML=Object.entries(CATS).filter(([k])=>k).map(([k,v])=>`<div class="cat-legend-item"><span class="cat-dot" style="background:${v.color}"></span>${k}</div>`).join('');
+}
+
+// ── Stock calculations ────────────────────────────────
+function getStock(pid){ return state.movements.reduce((s,m)=>m.product_id===pid?s+(m.type==='in'?m.qty:-m.qty):s,0); }
+function getLastRetailPurchase(pid){ const p=state.movements.filter(m=>m.product_id===pid&&m.type==='in'&&m.cost_per_unit!=null&&!m.promo); return p.length?p[p.length-1]:null; }
+function calcRetail(p){ if(!p)return null; const m=p.margin||30; return p.cost_per_unit/(1-m/100); }
+
+// ── Product search dropdown ───────────────────────────
+function filterProds(prefix){
+  const q=document.getElementById(prefix+'-search').value.toLowerCase();
+  const dd=document.getElementById(prefix+'-dd');
+  const matches=state.products.filter(p=>p.name.toLowerCase().includes(q)||(p.sku&&p.sku.toLowerCase().includes(q))||(p.category&&p.category.toLowerCase().includes(q))||(p.volume&&p.volume.toLowerCase().includes(q)));
+  if(!matches.length||!q){ dd.style.display='none'; return; }
+  dd.innerHTML=matches.slice(0,15).map(p=>{ const c=CATS[p.category]||CATS['']; return `<div class="prod-option" onclick="selectProd('${prefix}','${p.id}')"><span class="cat-dot" style="background:${c.color};flex-shrink:0;"></span><div><div>${p.name} <span style="font-size:11px;color:var(--text2);">${p.volume||''}</span></div><div class="sub">${p.sku||''}${p.category?' · '+p.category:''}</div></div></div>`; }).join('');
+  dd.style.display='block';
+}
+function showDd(prefix){ if(document.getElementById(prefix+'-search').value.length>0) filterProds(prefix); }
+function selectProd(prefix,id){
+  const p=state.products.find(x=>x.id===id); if(!p)return;
+  selected[prefix]=p;
+  document.getElementById(prefix+'-search').value=p.name+(p.volume?' ('+p.volume+')':'');
+  document.getElementById(prefix+'-sel').textContent=(p.sku||'')+(p.category?' · '+p.category:'')+(p.volume?' · '+p.volume:'');
+  document.getElementById(prefix+'-dd').style.display='none';
+  if(prefix==='mgr-mov'&&mgrType==='sale') populateSalePrice(p);
+}
+document.addEventListener('click',e=>{
+  ['sr','mgr','mgr-mov'].forEach(pfx=>{ const dd=document.getElementById(pfx+'-dd'); if(dd&&!dd.contains(e.target)&&e.target.id!==pfx+'-search') dd.style.display='none'; });
+});
+
+// ── Render: stockroom stock ───────────────────────────
+function renderSrStock(filter){
+  const f=(filter||'').toLowerCase();
+  const tbody=document.getElementById('sr-stock-body');
+  const prods=state.products.filter(p=>!f||p.name.toLowerCase().includes(f)||(p.sku&&p.sku.toLowerCase().includes(f)));
+  if(!prods.length){ tbody.innerHTML='<tr><td colspan="4" class="empty-state">No products found</td></tr>'; return; }
+  tbody.innerHTML=prods.map(p=>{ const qty=getStock(p.id); return `<tr><td>${catDot(p.category)}${p.name}</td><td>${volPill(p.volume)}</td><td style="font-size:12px;color:var(--text2);">${p.sku||'—'}</td><td class="${qty<=2?'low-stock':''}">${qty}${qty<=2?' ⚠':''}</td></tr>`; }).join('');
+}
+
+// ── Render: stockroom history ─────────────────────────
+function renderSrHistory(filter){
+  currentSrHistFilter=filter||'';
+  const f=currentSrHistFilter.toLowerCase();
+  const tbody=document.getElementById('sr-hist-body');
+  const sorted=[...state.movements].sort((a,b)=>b.date.localeCompare(a.date));
+  const filtered=sorted.filter(m=>{ const p=state.products.find(x=>x.id===m.product_id); return !f||(p&&p.name.toLowerCase().includes(f))||(m.person&&m.person.toLowerCase().includes(f))||(m.submitter&&m.submitter.toLowerCase().includes(f)); });
+  if(!filtered.length){ tbody.innerHTML='<tr><td colspan="9" class="empty-state">No movements yet</td></tr>'; return; }
+  tbody.innerHTML=filtered.map(m=>{ const p=state.products.find(x=>x.id===m.product_id); const tag=m.type==='in'?'<span class="tag in">In</span>':'<span class="tag out">Out</span>'; return `<tr id="srow-${m.id}"><td>${m.date}</td><td>${tag}</td><td>${p?catDot(p.category)+p.name:'—'}</td><td>${p?volPill(p.volume):'—'}</td><td>${m.qty}</td><td>${dash(m.person)}</td><td>${dash(m.submitter)}</td><td>${noteCell(m.notes)}</td><td><div class="action-btns"><button class="btn ghost" onclick="openEditMovement('${m.id}','sr')"><i class="ti ti-edit"></i></button><button class="btn danger" onclick="deleteMovement('${m.id}','sr')"><i class="ti ti-trash"></i></button></div></td></tr>`; }).join('');
+}
+
+// ── Render: manager dashboard ─────────────────────────
+function renderMgrDashboard(){
+  const totalUnits=state.products.reduce((s,p)=>s+Math.max(0,getStock(p.id)),0);
+  const totalOut=state.movements.filter(m=>m.type!=='in').reduce((s,m)=>s+m.qty,0);
+  const lowStock=state.products.filter(p=>getStock(p.id)<=2&&getStock(p.id)>=0).length;
+  const totalValue=state.products.reduce((s,p)=>{ const last=getLastRetailPurchase(p.id); if(!last)return s; return s+Math.max(0,getStock(p.id))*calcRetail(last); },0);
+  document.getElementById('mgr-metrics').innerHTML=`<div class="metric-card"><div class="label">Products</div><div class="value">${state.products.length}</div></div><div class="metric-card"><div class="label">Units in stock</div><div class="value">${totalUnits}</div></div><div class="metric-card"><div class="label">Total removed</div><div class="value">${totalOut}</div></div><div class="metric-card"><div class="label">Retail stock value</div><div class="value">€${totalValue.toFixed(0)}</div></div><div class="metric-card"><div class="label" style="color:var(--danger)">Low stock</div><div class="value" style="color:var(--danger)">${lowStock}</div></div>`;
+  renderCatLegend('mgr-dash-legend');
+  renderMgrStock('');
+}
+
+function renderMgrStock(filter){
+  const f=(filter||'').toLowerCase();
+  const container=document.getElementById('mgr-stock-grouped');
+  const prods=state.products.filter(p=>!f||p.name.toLowerCase().includes(f)||(p.sku&&p.sku.toLowerCase().includes(f)));
+  if(!prods.length){ container.innerHTML='<div class="empty-state">No products found</div>'; return; }
+  let html='';
+  CAT_ORDER.forEach(cat=>{
+    const group=prods.filter(p=>(p.category||'')===(cat||'')); if(!group.length)return;
+    const c=CATS[cat]||CATS[''];
+    html+=`<div style="margin-bottom:1rem;"><div class="cat-group-header"><span class="cat-dot" style="background:${c.color}"></span>${cat||'Uncategorised'}</div><div class="card" style="padding:0;overflow:auto;margin-bottom:0;"><table><thead><tr><th>Product</th><th>Volume</th><th>SKU</th><th>In stock</th><th>Last buy cost</th><th>Retail price</th><th>Margin</th><th>Details</th></tr></thead><tbody>${group.map(p=>{ const qty=getStock(p.id); const last=getLastRetailPurchase(p.id); const retail=last?calcRetail(last):null; const margin=last?(last.margin||30):null; const hasDetails=p.spec||p.notes; return `<tr><td>${catDot(p.category)}${p.name}</td><td>${volPill(p.volume)}</td><td style="font-size:12px;color:var(--text2);">${p.sku||'—'}</td><td class="${qty<=2?'low-stock':''}">${qty}${qty<=2?' ⚠':''}</td><td>${last?'€'+last.cost_per_unit.toFixed(2):'—'}</td><td>${retail?'€'+retail.toFixed(2):'—'}</td><td>${margin?margin.toFixed(1)+'%':'—'}</td><td>${hasDetails?`<button class="btn ghost" onclick="showDetails('${p.id}')">Details</button>`:'—'}</td></tr>`; }).join('')}</tbody></table></div></div>`;
+  });
+  container.innerHTML=html;
+}
+
+function showDetails(pid){
+  const p=state.products.find(x=>x.id===pid); if(!p)return;
+  const panelId='dp-'+pid;
+  const existing=document.getElementById(panelId); if(existing){ existing.remove(); return; }
+  const panel=document.createElement('tr'); panel.id=panelId;
+  panel.innerHTML=`<td colspan="8" style="padding:0;"><div style="background:var(--bg2);padding:10px 14px;font-size:13px;">${p.spec?`<div style="margin-bottom:4px;"><span style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text2);">Specs</span><br>${esc(p.spec)}</div>`:''}${p.notes?`<div><span style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text2);">Notes</span><br>${esc(p.notes)}</div>`:''}${!p.spec&&!p.notes?'<span style="color:var(--text2);">No details entered</span>':''}</div></td>`;
+  const rows=document.querySelectorAll('#mgr-stock-grouped tr');
+  for(const row of rows){ if(row.innerHTML.includes(`showDetails('${pid}'`)){ row.parentNode.insertBefore(panel,row.nextSibling); break; } }
+}
+
+// ── Render: manager history ───────────────────────────
+function renderMgrHistory(filter){
+  currentMgrHistFilter=filter||'';
+  const f=currentMgrHistFilter.toLowerCase();
+  const tbody=document.getElementById('mgr-hist-body');
+  const sorted=[...state.movements].sort((a,b)=>b.date.localeCompare(a.date));
+  const filtered=sorted.filter(m=>{ const p=state.products.find(x=>x.id===m.product_id); return !f||(p&&p.name.toLowerCase().includes(f))||(m.person&&m.person.toLowerCase().includes(f))||(m.submitter&&m.submitter.toLowerCase().includes(f))||m.type.includes(f); });
+  if(!filtered.length){ tbody.innerHTML='<tr><td colspan="13" class="empty-state">No movements yet</td></tr>'; return; }
+  const tagMap={in:'<span class="tag in">Purchase</span>',out:'<span class="tag out">Removal</span>',sale:'<span class="tag sale">Sale</span>',loss:'<span class="tag loss">Loss</span>'};
+  tbody.innerHTML=filtered.map(m=>{ const p=state.products.find(x=>x.id===m.product_id); const retail=m.type==='in'&&m.margin!=null?(m.cost_per_unit/(1-m.margin/100)):null; return `<tr id="mrow-${m.id}"><td>${m.date}</td><td>${tagMap[m.type]||'<span class="tag out">Out</span>'}${m.promo?'<span class="promo-badge">promo</span>':''}</td><td>${p?catDot(p.category)+p.name:'—'}</td><td>${p?volPill(p.volume):'—'}</td><td>${m.qty}</td><td>${dash(m.person)}</td><td>${m.sale_price!=null?'€'+Number(m.sale_price).toFixed(2):dash(null)}</td><td>${m.cost_per_unit!=null?'€'+Number(m.cost_per_unit).toFixed(2):dash(null)}</td><td>${retail?'€'+retail.toFixed(2):dash(null)}</td><td>${dash(m.submitter)}</td><td>${noteCell(m.notes)}</td><td style="font-size:12px;color:var(--text2);">${m.invoice||'—'}</td><td><div class="action-btns"><button class="btn ghost" onclick="openEditMovement('${m.id}','mgr')"><i class="ti ti-edit"></i></button><button class="btn danger" onclick="deleteMovement('${m.id}','mgr')"><i class="ti ti-trash"></i></button></div></td></tr>`; }).join('');
+}
+
+// ── Render: products ──────────────────────────────────
+function renderProductList(filter){
+  const f=(filter||'').toLowerCase();
+  const container=document.getElementById('prod-list-grouped');
+  const prods=state.products.filter(p=>!f||p.name.toLowerCase().includes(f)||(p.sku&&p.sku.toLowerCase().includes(f))||(p.category&&p.category.toLowerCase().includes(f)));
+  if(!prods.length){ container.innerHTML='<div class="empty-state">No products yet</div>'; return; }
+  let html='';
+  CAT_ORDER.forEach(cat=>{
+    const group=prods.filter(p=>(p.category||'')===(cat||'')); if(!group.length)return;
+    const c=CATS[cat]||CATS[''];
+    html+=`<div style="margin-bottom:1rem;"><div class="cat-group-header"><span class="cat-dot" style="background:${c.color}"></span>${cat||'Uncategorised'}</div><div class="card" style="padding:0;overflow:auto;margin-bottom:0;"><table><thead><tr><th>Product</th><th>Volume</th><th>SKU</th><th>In stock</th><th>Details</th><th></th><th></th></tr></thead><tbody>${group.map(p=>{ const qty=getStock(p.id); const hasDetails=p.spec||p.notes; return `<tr><td>${catDot(p.category)}${p.name}</td><td>${volPill(p.volume)}</td><td style="font-size:12px;color:var(--text2);">${p.sku||'—'}</td><td class="${qty<=2?'low-stock':''}">${qty}</td><td>${hasDetails?`<button class="btn ghost" onclick="toggleProdDetail('${p.id}')">View</button>`:'—'}</td><td><button class="btn ghost" onclick="openEditProduct('${p.id}')"><i class="ti ti-edit"></i></button></td><td><button class="btn small danger" onclick="deleteProd('${p.id}')"><i class="ti ti-trash"></i></button></td></tr><tr id="prod-detail-${p.id}" style="display:none;"><td colspan="7" style="padding:0;"><div style="background:var(--bg2);padding:10px 14px;font-size:13px;">${p.spec?`<div style="margin-bottom:4px;"><span style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text2);">Specs</span><br>${esc(p.spec)}</div>`:''}${p.notes?`<div><span style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text2);">Notes</span><br>${esc(p.notes)}</div>`:''}${!p.spec&&!p.notes?'<span style="color:var(--text2);">No details</span>':''}</div></td></tr>`; }).join('')}</tbody></table></div></div>`;
+  });
+  container.innerHTML=html;
+}
+
+function toggleProdDetail(pid){ const row=document.getElementById('prod-detail-'+pid); if(row) row.style.display=row.style.display==='none'?'':'none'; }
+
+// ── CRUD: products ────────────────────────────────────
+async function addProduct(){
+  const name=document.getElementById('prod-name').value.trim();
+  if(!name) return;
+  const data={name,volume:document.getElementById('prod-vol').value,sku:document.getElementById('prod-sku').value.trim(),category:document.getElementById('prod-cat').value,spec:document.getElementById('prod-spec').value.trim()||null,notes:document.getElementById('prod-notes').value.trim()||null};
+  try{
+    const row=await sbInsert('products',data);
+    state.products.push(row);
+    ['prod-name','prod-sku','prod-spec','prod-notes'].forEach(id=>document.getElementById(id).value='');
+    document.getElementById('prod-cat').value='';
+    renderProductList('');
+    document.getElementById('prod-success').textContent='Product added ✓'; setTimeout(()=>document.getElementById('prod-success').textContent='',2000);
+  } catch(e){ document.getElementById('prod-error').textContent='Error: '+e.message; }
+}
+
+function openEditProduct(pid){
+  const p=state.products.find(x=>x.id===pid); if(!p)return;
+  const modal=document.getElementById('edit-prod-modal');
+  modal.className='modal-bg';
+  modal.innerHTML=`<div class="modal-box"><h3>Edit product</h3><div class="form-row"><div class="form-group"><label>Name</label><input type="text" id="ep-name" value="${esc(p.name)}"></div><div class="form-group"><label>Volume</label><select id="ep-vol">${['1L','4L','5L','20L','60L','208L'].map(v=>`<option${p.volume===v?' selected':''}>${v}</option>`).join('')}</select></div></div><div class="form-row"><div class="form-group"><label>SKU</label><input type="text" id="ep-sku" value="${esc(p.sku||'')}"></div><div class="form-group"><label>Category</label><select id="ep-cat"><option value="">No category</option>${['Engine oil','Gearbox / diff oil','Brake fluid','Steering / hydraulic fluid','Coolant'].map(c=>`<option${p.category===c?' selected':''}>${c}</option>`).join('')}</select></div></div><div class="collapsible-header" onclick="toggleCollapsible(this)" style="margin-bottom:4px;"><span>Details</span><i class="ti ti-chevron-down chevron"></i></div><div class="collapsible-body" style="display:none;"><div class="form-group" style="margin-bottom:8px;"><label>Spec</label><textarea id="ep-spec">${esc(p.spec||'')}</textarea></div><div class="form-group"><label>Notes</label><textarea id="ep-notes">${esc(p.notes||'')}</textarea></div></div><div style="display:flex;gap:8px;margin-top:14px;"><button class="btn primary" onclick="saveProduct('${pid}')">Save</button><button class="btn" onclick="closeModal('edit-prod-modal')">Cancel</button></div></div>`;
+}
+
+async function saveProduct(pid){
+  const data={name:document.getElementById('ep-name').value.trim(),volume:document.getElementById('ep-vol').value,sku:document.getElementById('ep-sku').value.trim(),category:document.getElementById('ep-cat').value,spec:document.getElementById('ep-spec').value.trim()||null,notes:document.getElementById('ep-notes').value.trim()||null};
+  try{ await sbUpdate('products',pid,data); const p=state.products.find(x=>x.id===pid); if(p) Object.assign(p,data); closeModal('edit-prod-modal'); renderProductList(''); renderMgrDashboard(); } catch(e){ alert('Error: '+e.message); }
+}
+
+async function deleteProd(id){
+  if(!confirm('Delete this product?')) return;
+  try{ await sbDelete('products',id); state.products=state.products.filter(p=>p.id!==id); renderProductList(''); renderMgrDashboard(); } catch(e){ alert('Error: '+e.message); }
+}
+
+// ── CRUD: movements ───────────────────────────────────
+async function logSr(){
+  const date=document.getElementById('sr-date').value;
+  const person=document.getElementById('sr-person').value.trim();
+  const product=selected.sr;
+  const qty=parseInt(document.getElementById('sr-qty').value);
+  if(!date||!person||!product||!qty){ alert('Please fill in date, customer/person, product and quantity.'); return; }
+  const data={type:srType,date,person,product_id:product.id,qty,submitter:document.getElementById('sr-submitter').value.trim()||null,notes:document.getElementById('sr-notes').value.trim()||null};
+  try{
+    const row=await sbInsert('movements',data);
+    state.movements.unshift(row);
+    document.getElementById('sr-person').value=''; document.getElementById('sr-qty').value='1'; document.getElementById('sr-submitter').value=''; document.getElementById('sr-notes').value='';
+    selected.sr=null; document.getElementById('sr-search').value=''; document.getElementById('sr-sel').textContent='No product selected';
+    document.getElementById('sr-success').textContent='Movement logged ✓'; setTimeout(()=>document.getElementById('sr-success').textContent='',2500);
+  } catch(e){ document.getElementById('sr-error').textContent='Error: '+e.message; }
+}
+
+async function logMgrMov(){
+  const date=document.getElementById('mgr-mov-date').value;
+  const product=selected['mgr-mov'];
+  const isSale=mgrType==='sale';
+  const qty=parseInt(isSale?document.getElementById('mgr-mov-qty').value:document.getElementById('mgr-mov-qty-b').value);
+  const salePrice=isSale?parseFloat(document.getElementById('mgr-sale-price').value):null;
+  if(!date||!product||!qty){ alert('Please fill in date, product and quantity.'); return; }
+  const data={type:mgrType,date,person:document.getElementById('mgr-mov-person').value.trim(),product_id:product.id,qty,sale_price:(isSale&&!isNaN(salePrice))?salePrice:null,submitter:document.getElementById('mgr-mov-submitter').value.trim()||null,notes:document.getElementById('mgr-mov-notes').value.trim()||null};
+  try{
+    const row=await sbInsert('movements',data);
+    state.movements.unshift(row);
+    selected['mgr-mov']=null; document.getElementById('mgr-mov-search').value=''; document.getElementById('mgr-mov-sel').textContent='No product selected';
+    document.getElementById('mgr-mov-person').value=''; document.getElementById('mgr-mov-qty').value='1'; document.getElementById('mgr-mov-qty-b').value='1';
+    document.getElementById('mgr-sale-price').value=''; document.getElementById('mgr-sale-price-hint').textContent='';
+    document.getElementById('mgr-mov-submitter').value=''; document.getElementById('mgr-mov-notes').value='';
+    document.getElementById('mgr-mov-success').textContent=mgrType.charAt(0).toUpperCase()+mgrType.slice(1)+' logged ✓'; setTimeout(()=>document.getElementById('mgr-mov-success').textContent='',2500);
+    renderMgrDashboard();
+  } catch(e){ document.getElementById('mgr-mov-error').textContent='Error: '+e.message; }
+}
+
+async function logPurchase(){
+  const date=document.getElementById('mgr-date').value;
+  const product=selected.mgr;
+  const qty=parseInt(document.getElementById('mgr-qty').value);
+  const cost=parseFloat(document.getElementById('mgr-cost').value);
+  const margin=parseFloat(document.getElementById('mgr-margin').value);
+  const promo=document.getElementById('mgr-promo').checked;
+  if(!date||!product||!qty||isNaN(cost)){ alert('Please fill in date, product, quantity and cost.'); return; }
+  const data={type:'in',date,invoice:document.getElementById('mgr-invoice').value.trim()||null,supplier:'Pakelo',product_id:product.id,qty,cost_per_unit:cost,margin:isNaN(margin)?30:margin,promo:promo||false};
+  try{
+    const row=await sbInsert('movements',data);
+    state.movements.unshift(row);
+    selected.mgr=null; document.getElementById('mgr-search').value=''; document.getElementById('mgr-sel').textContent='No product selected';
+    document.getElementById('mgr-qty').value='1'; document.getElementById('mgr-cost').value=''; document.getElementById('mgr-invoice').value='';
+    document.getElementById('mgr-promo').checked=false; document.getElementById('mgr-price-preview').style.display='none'; document.getElementById('mgr-promo-note').style.display='none';
+    document.getElementById('mgr-success').textContent='Purchase logged ✓'; setTimeout(()=>document.getElementById('mgr-success').textContent='',2500);
+    renderMgrDashboard();
+  } catch(e){ document.getElementById('mgr-error').textContent='Error: '+e.message; }
+}
+
+function updatePurchasePreview(){
+  const cost=parseFloat(document.getElementById('mgr-cost').value);
+  const margin=parseFloat(document.getElementById('mgr-margin').value);
+  const promo=document.getElementById('mgr-promo').checked;
+  const prev=document.getElementById('mgr-price-preview');
+  document.getElementById('mgr-promo-note').style.display=promo?'block':'none';
+  if(!isNaN(cost)&&!isNaN(margin)&&margin<100){ const retail=cost/(1-margin/100); prev.style.display='block'; prev.textContent=promo?`Actual cost: €${cost.toFixed(2)} — retail will use last regular price`:`Cost: €${cost.toFixed(2)} → Retail: €${retail.toFixed(2)} (${margin.toFixed(1)}% margin)`; } else { prev.style.display='none'; }
+}
+
+// ── Edit movement modal ───────────────────────────────
+function openEditMovement(mid,context){
+  const m=state.movements.find(x=>x.id===mid); if(!m)return;
+  const p=state.products.find(x=>x.id===m.product_id);
+  const isIn=m.type==='in'; const isSale=m.type==='sale';
+  const modal=document.getElementById('edit-mov-modal');
+  modal.className='modal-bg';
+  modal.innerHTML=`<div class="modal-box"><h3>Edit movement — ${TYPE_LABELS[m.type]||m.type}</h3>
+    <div class="form-row"><div class="form-group"><label>Date</label><input type="date" id="em-date" value="${m.date}"></div><div class="form-group"><label>Quantity</label><input type="number" id="em-qty" min="1" value="${m.qty}"></div></div>
+    <div class="form-group" style="margin-bottom:12px;"><label>Product</label><input type="text" value="${p?p.name+(p.volume?' ('+p.volume+')':''):'Unknown'}" readonly style="background:var(--bg2);color:var(--text2);"><div style="font-size:11px;color:var(--text3);margin-top:3px;">Product cannot be changed — delete and re-enter if needed</div></div>
+    ${!isIn?`<div class="form-row"><div class="form-group"><label>${m.type==='sale'?'Customer':m.type==='loss'?'Reason':'Person / reason'}</label><input type="text" id="em-person" value="${esc(m.person||'')}"></div>${isSale?`<div class="form-group"><label>Sale price / can (€)</label><input type="number" id="em-sale-price" step="0.01" value="${m.sale_price!=null?m.sale_price:''}"></div>`:'<div class="form-group"></div>'}</div>`:''}
+    ${isIn?`<div class="form-row three"><div class="form-group"><label>Cost per can (€)</label><input type="number" id="em-cost" step="0.01" value="${m.cost_per_unit!=null?m.cost_per_unit:''}"></div><div class="form-group"><label>Margin (%)</label><input type="number" id="em-margin" step="1" value="${m.margin||30}"></div><div class="form-group"><label>Invoice / ref</label><input type="text" id="em-invoice" value="${esc(m.invoice||'')}"></div></div><div class="checkbox-row"><input type="checkbox" id="em-promo"${m.promo?' checked':''}><label for="em-promo">Promotional / free stock</label></div>`:''}
+    <div class="form-row"><div class="form-group"><label>Submitted by <span style="font-weight:400;color:var(--text3);">(optional)</span></label><input type="text" id="em-submitter" value="${esc(m.submitter||'')}"></div><div class="form-group"><label>Notes <span style="font-weight:400;color:var(--text3);">(optional)</span></label><input type="text" id="em-notes" value="${esc(m.notes||'')}"></div></div>
+    <div style="display:flex;gap:8px;margin-top:14px;"><button class="btn primary" onclick="saveMovement('${mid}','${context}')">Save changes</button><button class="btn" onclick="closeModal('edit-mov-modal')">Cancel</button></div>
+  </div>`;
+}
+
+async function saveMovement(mid,context){
+  const m=state.movements.find(x=>x.id===mid); if(!m)return;
+  const isIn=m.type==='in'; const isSale=m.type==='sale';
+  const data={date:document.getElementById('em-date').value,qty:parseInt(document.getElementById('em-qty').value)||m.qty,submitter:document.getElementById('em-submitter').value.trim()||null,notes:document.getElementById('em-notes').value.trim()||null};
+  if(!isIn) data.person=document.getElementById('em-person').value.trim()||null;
+  if(isSale){ const sp=parseFloat(document.getElementById('em-sale-price').value); data.sale_price=!isNaN(sp)?sp:null; }
+  if(isIn){ const cost=parseFloat(document.getElementById('em-cost').value); const margin=parseFloat(document.getElementById('em-margin').value); if(!isNaN(cost))data.cost_per_unit=cost; if(!isNaN(margin))data.margin=margin; data.invoice=document.getElementById('em-invoice').value.trim()||null; data.promo=document.getElementById('em-promo').checked; }
+  try{ await sbUpdate('movements',mid,data); Object.assign(m,data); closeModal('edit-mov-modal'); if(context==='sr')renderSrHistory(currentSrHistFilter); else{ renderMgrHistory(currentMgrHistFilter); renderMgrDashboard(); } } catch(e){ alert('Error: '+e.message); }
+}
+
+async function deleteMovement(mid,context){
+  if(!confirm('Delete this movement? Stock levels will update.')) return;
+  try{ await sbDelete('movements',mid); state.movements=state.movements.filter(m=>m.id!==mid); if(context==='sr')renderSrHistory(currentSrHistFilter); else{ renderMgrHistory(currentMgrHistFilter); renderMgrDashboard(); } } catch(e){ alert('Error: '+e.message); }
+}
+
+function closeModal(id){ const el=document.getElementById(id); el.className='modal-hidden'; el.innerHTML=''; }
+
+// ── KPIs ──────────────────────────────────────────────
+function renderKpi(){
+  const sales=state.movements.filter(m=>m.type==='sale');
+  const losses=state.movements.filter(m=>m.type==='loss');
+  const purchases=state.movements.filter(m=>m.type==='in');
+  let totalRevenue=0,totalCOGS=0,totalLossValue=0;
+  sales.forEach(m=>{ const last=getLastRetailPurchase(m.product_id); const retail=m.sale_price!=null?m.sale_price:(last?calcRetail(last):0); totalRevenue+=retail*m.qty; if(last)totalCOGS+=last.cost_per_unit*m.qty; });
+  losses.forEach(m=>{ const last=getLastRetailPurchase(m.product_id); if(last)totalLossValue+=last.cost_per_unit*m.qty; });
+  const gp=totalRevenue-totalCOGS,gm=totalRevenue>0?(gp/totalRevenue*100):0;
+  const uIn=purchases.reduce((s,m)=>s+m.qty,0),uSold=sales.reduce((s,m)=>s+m.qty,0),uLost=losses.reduce((s,m)=>s+m.qty,0);
+  const customers=new Set(sales.map(m=>m.person).filter(Boolean)).size;
+  const revPerTx=sales.length>0?(totalRevenue/sales.length):0;
+  document.getElementById('kpi-revenue').innerHTML=`<div class="metric-card"><div class="label">Total revenue</div><div class="value">€${totalRevenue.toFixed(0)}</div></div><div class="metric-card"><div class="label">Gross profit</div><div class="value">€${gp.toFixed(0)}</div></div><div class="metric-card"><div class="label">Gross margin</div><div class="value">${gm.toFixed(1)}%</div></div><div class="metric-card"><div class="label">Loss value</div><div class="value" style="color:var(--danger)">€${totalLossValue.toFixed(0)}</div></div><div class="metric-card"><div class="label">Revenue / sale</div><div class="value">€${revPerTx.toFixed(0)}</div></div>`;
+  const lowCount=state.products.filter(p=>getStock(p.id)<=2&&getStock(p.id)>=0).length;
+  const totalStockUnits=state.products.reduce((s,p)=>s+Math.max(0,getStock(p.id)),0);
+  document.getElementById('kpi-stock').innerHTML=`<div class="metric-card"><div class="label">Units in stock</div><div class="value">${totalStockUnits}</div></div><div class="metric-card"><div class="label">Units purchased</div><div class="value">${uIn}</div></div><div class="metric-card"><div class="label">Units sold</div><div class="value">${uSold}</div></div><div class="metric-card"><div class="label">Units lost</div><div class="value" style="color:var(--danger)">${uLost}</div></div><div class="metric-card"><div class="label">Sell-through</div><div class="value">${uIn>0?(uSold/uIn*100).toFixed(1):0}%</div></div><div class="metric-card"><div class="label">Low stock alerts</div><div class="value" style="color:var(--danger)">${lowCount}</div></div>`;
+  document.getElementById('kpi-sales').innerHTML=`<div class="metric-card"><div class="label">Sale events</div><div class="value">${sales.length}</div></div><div class="metric-card"><div class="label">Unique customers</div><div class="value">${customers}</div></div><div class="metric-card"><div class="label">Avg qty / sale</div><div class="value">${sales.length>0?(uSold/sales.length).toFixed(1):'—'}</div></div>`;
+  const catSales={}; Object.keys(CATS).filter(k=>k).forEach(k=>catSales[k]=0);
+  sales.forEach(m=>{ const p=state.products.find(x=>x.id===m.product_id); if(p&&p.category&&catSales[p.category]!=null)catSales[p.category]+=m.qty; });
+  const catKeys=Object.keys(catSales),catColors=catKeys.map(k=>CATS[k]?CATS[k].color:'#888780');
+  document.getElementById('kpi-cat-legend').innerHTML=catKeys.map((k,i)=>`<div class="cat-legend-item"><span style="width:10px;height:10px;border-radius:2px;background:${catColors[i]};display:inline-block;"></span>${k}</div>`).join('');
+  if(charts.cat)charts.cat.destroy();
+  charts.cat=new Chart(document.getElementById('chart-cat'),{type:'bar',data:{labels:catKeys,datasets:[{label:'Units sold',data:catKeys.map(k=>catSales[k]),backgroundColor:catColors,borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{precision:0}}}}});
+  const monthMap={}; state.movements.forEach(m=>{ const mo=m.date.slice(0,7); if(!monthMap[mo])monthMap[mo]={in:0,out:0}; if(m.type==='in')monthMap[mo].in+=m.qty; else monthMap[mo].out+=m.qty; });
+  const months=Object.keys(monthMap).sort();
+  if(charts.monthly)charts.monthly.destroy();
+  charts.monthly=new Chart(document.getElementById('chart-monthly'),{type:'line',data:{labels:months,datasets:[{label:'In',data:months.map(m=>monthMap[m].in),borderColor:'#639922',fill:false,tension:.3,pointRadius:4},{label:'Out',data:months.map(m=>monthMap[m].out),borderColor:'#E24B4A',fill:false,tension:.3,pointRadius:4,borderDash:[4,3]}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{precision:0}},x:{ticks:{autoSkip:true,maxRotation:45}}}}});
+  const prodStats={}; state.products.forEach(p=>prodStats[p.id]={units:0,revenue:0,losses:0});
+  state.movements.forEach(m=>{ if(!prodStats[m.product_id])return; if(m.type==='sale'){prodStats[m.product_id].units+=m.qty;const last=getLastRetailPurchase(m.product_id);const retail=m.sale_price!=null?m.sale_price:(last?calcRetail(last):0);prodStats[m.product_id].revenue+=retail*m.qty;} if(m.type==='loss')prodStats[m.product_id].losses+=m.qty; });
+  const top=[...state.products].sort((a,b)=>prodStats[b.id].units-prodStats[a.id].units).slice(0,10);
+  const tbody=document.getElementById('kpi-top');
+  if(!top.length){ tbody.innerHTML='<tr><td colspan="6" class="empty-state">No sales logged yet</td></tr>'; return; }
+  tbody.innerHTML=top.map(p=>`<tr><td>${catDot(p.category)}${p.name}</td><td>${volPill(p.volume)}</td><td>${catPill(p.category)}</td><td>${prodStats[p.id].units}</td><td>${prodStats[p.id].revenue>0?'€'+prodStats[p.id].revenue.toFixed(0):'—'}</td><td>${prodStats[p.id].losses>0?`<span style="color:var(--danger)">${prodStats[p.id].losses}</span>`:'0'}</td></tr>`).join('');
+}
+
+// ── Excel export ──────────────────────────────────────
+function volLabel(v){ const m={'1L':'1 LITRO','4L':'4 LITROS','5L':'5 LITROS','20L':'20 LITROS','60L':'60 LITROS','208L':'208 LITROS'}; return m[v]||v||''; }
+function catLabel(cat){ const m={'Engine oil':'ENGINE OIL','Gearbox / diff oil':'GEARBOX OIL','Brake fluid':'BRAKE OIL','Steering / hydraulic fluid':'STEERING OIL','Coolant':'COOLING FLUID'}; return m[cat]||cat.toUpperCase()||''; }
+
+function runExport(){
+  try{
+    const wb=XLSX.utils.book_new();
+    // PRODUCT_DATABASE
+    const dbRows=[['Reference','Type of product','Name of product','Volume','Last Purchase Price','Retail price','Current/Available','PROFIT','REVENUE OF GOODS SOLD','COGS']];
+    state.products.forEach(p=>{ const qty=Math.max(0,getStock(p.id)); const last=getLastRetailPurchase(p.id); const cost=last?last.cost_per_unit:null; const margin=last?(last.margin||30):30; const retail=cost!=null?cost/(1-margin/100):null; const sales=state.movements.filter(m=>m.product_id===p.id&&m.type==='sale'); const revenue=sales.reduce((s,m)=>{ const r=m.sale_price!=null?m.sale_price:(retail||0); return s+r*m.qty; },0); const cogs=sales.reduce((s,m)=>s+(cost||0)*m.qty,0); dbRows.push([p.sku||'',catLabel(p.category),p.name,volLabel(p.volume),cost!=null?+cost.toFixed(2):'',retail!=null?+retail.toFixed(2):'',qty,+(revenue-cogs).toFixed(2),+revenue.toFixed(2),+cogs.toFixed(2)]); });
+    const ws1=XLSX.utils.aoa_to_sheet(dbRows); ws1['!cols']=[{wch:16},{wch:18},{wch:36},{wch:12},{wch:18},{wch:14},{wch:10},{wch:12},{wch:22},{wch:12}];
+    XLSX.utils.book_append_sheet(wb,ws1,'PRODUCT_DATABASE');
+    // STOCK_ENTRY
+    const entryRows=[['Purchase Date','Invoice Number','Reference','Type of product','Name of product','Volume','Qty Purchased','Unit Price','Total Price']];
+    state.movements.filter(m=>m.type==='in').sort((a,b)=>a.date.localeCompare(b.date)).forEach(m=>{ const p=state.products.find(x=>x.id===m.product_id); entryRows.push([m.date,m.invoice||'',p?p.sku||'':'',p?catLabel(p.category):'',p?p.name:'',p?volLabel(p.volume):'',m.qty,m.cost_per_unit!=null?+Number(m.cost_per_unit).toFixed(2):'',m.cost_per_unit!=null&&m.qty?+( m.cost_per_unit*m.qty).toFixed(2):'']); });
+    const ws2=XLSX.utils.aoa_to_sheet(entryRows); ws2['!cols']=[{wch:14},{wch:16},{wch:16},{wch:18},{wch:36},{wch:12},{wch:14},{wch:12},{wch:14}];
+    XLSX.utils.book_append_sheet(wb,ws2,'STOCK_ENTRY');
+    // STOCK_EXIT
+    const exitRows=[['Date','Customer / Person','Submitted by','Reference','Type of product','Name of product','Volume','Qty','Sale price','Total Revenue','Type','Notes']];
+    state.movements.filter(m=>m.type!=='in').sort((a,b)=>a.date.localeCompare(b.date)).forEach(m=>{ const p=state.products.find(x=>x.id===m.product_id); const last=p?getLastRetailPurchase(p.id):null; const retail=last?calcRetail(last):null; const sp=m.sale_price!=null?m.sale_price:retail; exitRows.push([m.date,m.person||'',m.submitter||'',p?p.sku||'':'',p?catLabel(p.category):'',p?p.name:'',p?volLabel(p.volume):'',m.qty,sp!=null?+Number(sp).toFixed(2):'',sp!=null&&m.qty?+(sp*m.qty).toFixed(2):'',{sale:'Sale',out:'Removal',loss:'Loss/Breakage'}[m.type]||m.type,m.notes||'']); });
+    const ws3=XLSX.utils.aoa_to_sheet(exitRows); ws3['!cols']=[{wch:14},{wch:20},{wch:16},{wch:16},{wch:18},{wch:36},{wch:12},{wch:8},{wch:12},{wch:16},{wch:14},{wch:24}];
+    XLSX.utils.book_append_sheet(wb,ws3,'STOCK_EXIT');
+    const stamp=new Date().toISOString().slice(0,10);
+    XLSX.writeFile(wb,`Pakelo_Backup_${stamp}.xlsx`);
+  } catch(e){ alert('Export failed: '+e.message); }
+}
+
+// ── Init ──────────────────────────────────────────────
+if(!isConfigured()){
+  setSyncStatus('err','Not configured');
+} else {
+  document.getElementById('config-banner').classList.remove('show');
+  loadFromSupabase();
+}
+</script>
+</body>
+</html>
