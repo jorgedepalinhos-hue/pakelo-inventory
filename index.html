@@ -461,7 +461,8 @@ async function sbFetch(path, opts={}){
     throw new Error(err);
   }
   const text = await res.text();
-  return text ? JSON.parse(text) : null;
+  if(!text || text === '') return opts.method && opts.method !== 'GET' ? null : [];
+  try{ return JSON.parse(text); } catch(e){ return []; }
 }
 
 async function loadFromSupabase(){
@@ -475,12 +476,12 @@ async function loadFromSupabase(){
     state.movements = movements || [];
     supabaseOk = true;
     setSyncStatus('ok','Live');
-    if(isConfigured()) document.getElementById('config-banner').classList.remove('show');
   } catch(e){
+    console.warn('Supabase error:', e);
     supabaseOk = false;
     setSyncStatus('err','Offline — using local cache');
     const cached = localStorage.getItem('pakelo-cache');
-    if(cached){ const c=JSON.parse(cached); state.products=c.products||[]; state.movements=c.movements||[]; }
+    if(cached){ try{ const c=JSON.parse(cached); state.products=c.products||[]; state.movements=c.movements||[]; }catch(ce){} }
   }
   saveLocalCache();
 }
