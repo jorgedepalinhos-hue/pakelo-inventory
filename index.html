@@ -908,16 +908,6 @@ async function toggleIgnoreLowStock(pid){
 }
 
 
-async function toggleIgnoreLowStock(pid){
-  const p=state.products.find(x=>x.id===pid);
-  if(!p){ console.warn('Product not found:', pid); return; }
-  const newVal=!(p.ignore_low_stock===true);
-  try{
-    await sbUpdate('products',pid,{ignore_low_stock:newVal});
-    p.ignore_low_stock=newVal;
-    renderMgrDashboard();
-  } catch(e){ alert('Toggle error: '+e.message); }
-}
 
 function renderKpi(){
   const sales=state.movements.filter(m=>m.type==='sale');
