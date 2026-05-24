@@ -940,7 +940,7 @@ function renderKpi(){
   charts.monthly=new Chart(document.getElementById('chart-monthly'),{type:'line',data:{labels:months,datasets:[{label:'In',data:months.map(m=>monthMap[m].in),borderColor:'#639922',fill:false,tension:.3,pointRadius:4},{label:'Out',data:months.map(m=>monthMap[m].out),borderColor:'#E24B4A',fill:false,tension:.3,pointRadius:4,borderDash:[4,3]}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{precision:0}},x:{ticks:{autoSkip:true,maxRotation:45}}}}});
   const prodStats={}; state.products.forEach(p=>prodStats[p.id]={units:0,revenue:0,losses:0});
   state.movements.forEach(m=>{ if(!prodStats[m.product_id])return; if(m.type==='sale'){prodStats[m.product_id].units+=m.qty;const last=getLastRetailPurchase(m.product_id);const retail=m.sale_price!=null?m.sale_price:(last?calcRetail(last):0);prodStats[m.product_id].revenue+=retail*m.qty;} if(m.type==='loss')prodStats[m.product_id].losses+=m.qty; });
-  const top=[...state.products].sort((a,b)=>prodStats[b.id].units-prodStats[a.id].units).slice(0,10);
+  const top=[...state.products].filter(p=>prodStats[p.id].units>0).sort((a,b)=>prodStats[b.id].units-prodStats[a.id].units).slice(0,10);
   const tbody=document.getElementById('kpi-top');
   if(!top.length){ tbody.innerHTML='<tr><td colspan="6" class="empty-state">No sales logged yet</td></tr>'; return; }
   tbody.innerHTML=top.map(p=>`<tr><td>${catDot(p.category)}${p.name}</td><td>${volPill(p.volume)}</td><td>${catPill(p.category)}</td><td>${prodStats[p.id].units}</td><td>${prodStats[p.id].revenue>0?'€'+prodStats[p.id].revenue.toFixed(0):'—'}</td><td>${prodStats[p.id].losses>0?`<span style="color:var(--danger)">${prodStats[p.id].losses}</span>`:'0'}</td></tr>`).join('');
