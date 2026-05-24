@@ -446,23 +446,24 @@ let currentSrHistFilter='', currentMgrHistFilter='';
 const isConfigured = () => true;
 
 async function sbFetch(path, opts={}){
-  const res = await fetch(SUPABASE_URL + '/rest/v1/' + path, {
+  const fetchOpts = {
+    method: opts.method || 'GET',
     headers:{
       'apikey': SUPABASE_KEY,
       'Authorization': 'Bearer ' + SUPABASE_KEY,
       'Content-Type': 'application/json',
-      'Prefer': opts.prefer || 'return=representation',
-      ...(opts.headers||{})
-    },
-    ...opts
-  });
+      'Prefer': opts.prefer || 'return=representation'
+    }
+  };
+  if(opts.body) fetchOpts.body = opts.body;
+  const res = await fetch(SUPABASE_URL + '/rest/v1/' + path, fetchOpts);
   if(!res.ok){
     const err = await res.text();
     throw new Error(err);
   }
   const text = await res.text();
-  if(!text || text === '') return opts.method && opts.method !== 'GET' ? null : [];
-  try{ return JSON.parse(text); } catch(e){ return []; }
+  if(!text || text.trim() === '') return null;
+  try{ return JSON.parse(text); } catch(e){ return null; }
 }
 
 async function loadFromSupabase(){
@@ -659,7 +660,7 @@ function renderSrStock(filter){
   const tbody=document.getElementById('sr-stock-body');
   const prods=state.products.filter(p=>!f||p.name.toLowerCase().includes(f)||(p.sku&&p.sku.toLowerCase().includes(f)));
   if(!prods.length){ tbody.innerHTML='<tr><td colspan="4" class="empty-state">No products found</td></tr>'; return; }
-  tbody.innerHTML=prods.map(p=>{ const qty=getStock(p.id); return `<tr><td>${catDot(p.category)}${p.name}</td><td>${volPill(p.volume)}</td><td style="font-size:12px;color:var(--text2);">${p.sku||'—'}</td><td class="${qty<=2?'low-stock':''}">${qty}${qty<=2?' ⚠':''}</td></tr>`; }).join('');
+  tbody.innerHTML=prods.map(p=>{ const qty=getStock(p.id); const isLow=qty<=2&&!p.ignore_low_stock; return `<tr><td>${catDot(p.category)}${p.name}</td><td>${volPill(p.volume)}</td><td style="font-size:12px;color:var(--text2);">${p.sku||'—'}</td><td class="${isLow?'low-stock':''}">${qty}${isLow?' ⚠':''}</td></tr>`; }).join('');
 }
 
 // ── Render: stockroom history ─────────────────────────
@@ -677,7 +678,7 @@ function renderSrHistory(filter){
 function renderMgrDashboard(){
   const totalUnits=state.products.reduce((s,p)=>s+Math.max(0,getStock(p.id)),0);
   const totalOut=state.movements.filter(m=>m.type!=='in').reduce((s,m)=>s+m.qty,0);
-  const lowStock=state.products.filter(p=>getStock(p.id)<=2&&getStock(p.id)>=0).length;
+  const lowStock=state.products.filter(p=>getStock(p.id)<=2&&getStock(p.id)>=0&&!p.ignore_low_stock).length;
   const totalValue=state.products.reduce((s,p)=>{ const last=getLastRetailPurchase(p.id); if(!last)return s; return s+Math.max(0,getStock(p.id))*calcRetail(last); },0);
   document.getElementById('mgr-metrics').innerHTML=`<div class="metric-card"><div class="label">Products</div><div class="value">${state.products.length}</div></div><div class="metric-card"><div class="label">Units in stock</div><div class="value">${totalUnits}</div></div><div class="metric-card"><div class="label">Total removed</div><div class="value">${totalOut}</div></div><div class="metric-card"><div class="label">Retail stock value</div><div class="value">€${totalValue.toFixed(0)}</div></div><div class="metric-card"><div class="label" style="color:var(--danger)">Low stock</div><div class="value" style="color:var(--danger)">${lowStock}</div></div>`;
   renderCatLegend('mgr-dash-legend');
@@ -693,7 +694,7 @@ function renderMgrStock(filter){
   CAT_ORDER.forEach(cat=>{
     const group=prods.filter(p=>(p.category||'')===(cat||'')); if(!group.length)return;
     const c=CATS[cat]||CATS[''];
-    html+=`<div style="margin-bottom:1rem;"><div class="cat-group-header"><span class="cat-dot" style="background:${c.color}"></span>${cat||'Uncategorised'}</div><div class="card" style="padding:0;overflow:auto;margin-bottom:0;"><table><thead><tr><th>Product</th><th>Volume</th><th>SKU</th><th>In stock</th><th>Last buy cost</th><th>Retail price</th><th>Margin</th><th>Details</th></tr></thead><tbody>${group.map(p=>{ const qty=getStock(p.id); const last=getLastRetailPurchase(p.id); const retail=last?calcRetail(last):null; const margin=last?(last.margin||30):null; const hasDetails=p.spec||p.notes; return `<tr><td>${catDot(p.category)}${p.name}</td><td>${volPill(p.volume)}</td><td style="font-size:12px;color:var(--text2);">${p.sku||'—'}</td><td class="${qty<=2?'low-stock':''}">${qty}${qty<=2?' ⚠':''}</td><td>${last?'€'+last.cost_per_unit.toFixed(2):'—'}</td><td>${retail?'€'+retail.toFixed(2):'—'}</td><td>${margin?margin.toFixed(1)+'%':'—'}</td><td>${hasDetails?`<button class="btn ghost" onclick="showDetails('${p.id}')">Details</button>`:'—'}</td></tr>`; }).join('')}</tbody></table></div></div>`;
+    html+=`<div style="margin-bottom:1rem;"><div class="cat-group-header"><span class="cat-dot" style="background:${c.color}"></span>${cat||'Uncategorised'}</div><div class="card" style="padding:0;overflow:auto;margin-bottom:0;"><table><thead><tr><th>Product</th><th>Volume</th><th>SKU</th><th>In stock</th><th>Last buy cost</th><th>Retail price</th><th>Margin</th><th>Details</th><th>Low stock</th></tr></thead><tbody>${group.map(p=>{ const qty=getStock(p.id); const last=getLastRetailPurchase(p.id); const retail=last?calcRetail(last):null; const margin=last?(last.margin||30):null; const hasDetails=p.spec||p.notes; const isLow=qty<=2&&!p.ignore_low_stock; return `<tr><td>${catDot(p.category)}${p.name}</td><td>${volPill(p.volume)}</td><td style="font-size:12px;color:var(--text2);">${p.sku||'—'}</td><td class="${isLow?'low-stock':''}">${qty}${isLow?' ⚠':''}</td><td>${last?'€'+last.cost_per_unit.toFixed(2):'—'}</td><td>${retail?'€'+retail.toFixed(2):'—'}</td><td>${margin?margin.toFixed(1)+'%':'—'}</td><td>${hasDetails?`<button class="btn ghost" onclick="showDetails('${p.id}')">Details</button>`:'—'}</td><td><button class="btn ghost" style="font-size:11px;padding:3px 8px;${p.ignore_low_stock?'opacity:0.45;':''}" onclick="toggleIgnoreLowStock('${p.id}')">⚠ ${p.ignore_low_stock?'Ignored':'Ignore'}</button></td></tr>`; }).join('')}</tbody></table></div></div>`;
   });
   container.innerHTML=html;
 }
@@ -870,6 +871,28 @@ async function deleteMovement(mid,context){
 function closeModal(id){ const el=document.getElementById(id); el.className='modal-hidden'; el.innerHTML=''; }
 
 // ── KPIs ──────────────────────────────────────────────
+
+async function toggleIgnoreLowStock(pid){
+  const p=state.products.find(x=>x.id===pid); if(!p)return;
+  const newVal=!p.ignore_low_stock;
+  try{
+    await sbUpdate('products',pid,{ignore_low_stock:newVal});
+    p.ignore_low_stock=newVal;
+    renderMgrDashboard();
+  } catch(e){ alert('Error: '+e.message); }
+}
+
+
+async function toggleIgnoreLowStock(pid){
+  const p=state.products.find(x=>x.id===pid); if(!p)return;
+  const newVal=!p.ignore_low_stock;
+  try{
+    await sbUpdate('products',pid,{ignore_low_stock:newVal});
+    p.ignore_low_stock=newVal;
+    renderMgrDashboard();
+  } catch(e){ alert('Error: '+e.message); }
+}
+
 function renderKpi(){
   const sales=state.movements.filter(m=>m.type==='sale');
   const losses=state.movements.filter(m=>m.type==='loss');
@@ -882,7 +905,7 @@ function renderKpi(){
   const customers=new Set(sales.map(m=>m.person).filter(Boolean)).size;
   const revPerTx=sales.length>0?(totalRevenue/sales.length):0;
   document.getElementById('kpi-revenue').innerHTML=`<div class="metric-card"><div class="label">Total revenue</div><div class="value">€${totalRevenue.toFixed(0)}</div></div><div class="metric-card"><div class="label">Gross profit</div><div class="value">€${gp.toFixed(0)}</div></div><div class="metric-card"><div class="label">Gross margin</div><div class="value">${gm.toFixed(1)}%</div></div><div class="metric-card"><div class="label">Loss value</div><div class="value" style="color:var(--danger)">€${totalLossValue.toFixed(0)}</div></div><div class="metric-card"><div class="label">Revenue / sale</div><div class="value">€${revPerTx.toFixed(0)}</div></div>`;
-  const lowCount=state.products.filter(p=>getStock(p.id)<=2&&getStock(p.id)>=0).length;
+  const lowCount=state.products.filter(p=>getStock(p.id)<=2&&getStock(p.id)>=0&&!p.ignore_low_stock).length;
   const totalStockUnits=state.products.reduce((s,p)=>s+Math.max(0,getStock(p.id)),0);
   document.getElementById('kpi-stock').innerHTML=`<div class="metric-card"><div class="label">Units in stock</div><div class="value">${totalStockUnits}</div></div><div class="metric-card"><div class="label">Units purchased</div><div class="value">${uIn}</div></div><div class="metric-card"><div class="label">Units sold</div><div class="value">${uSold}</div></div><div class="metric-card"><div class="label">Units lost</div><div class="value" style="color:var(--danger)">${uLost}</div></div><div class="metric-card"><div class="label">Sell-through</div><div class="value">${uIn>0?(uSold/uIn*100).toFixed(1):0}%</div></div><div class="metric-card"><div class="label">Low stock alerts</div><div class="value" style="color:var(--danger)">${lowCount}</div></div>`;
   document.getElementById('kpi-sales').innerHTML=`<div class="metric-card"><div class="label">Sale events</div><div class="value">${sales.length}</div></div><div class="metric-card"><div class="label">Unique customers</div><div class="value">${customers}</div></div><div class="metric-card"><div class="label">Avg qty / sale</div><div class="value">${sales.length>0?(uSold/sales.length).toFixed(1):'—'}</div></div>`;
