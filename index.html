@@ -3,24 +3,26 @@
 <head>
 <meta charset="UTF-8">
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-<title>Pakelo Inventory</title>
+<title>Pakelo Lubricants — Inventory</title>
 <link rel="stylesheet" href="https://cdn.jsdelivr.net/npm/@tabler/icons-webfont@2.47.0/tabler-icons.min.css">
 <style>
 /* ── Reset & base ─────────────────────────────── */
 *{box-sizing:border-box;margin:0;padding:0;}
 :root{
-  --bg:#ffffff;--bg2:#f5f5f3;--bg3:#eeede9;
+  --bg:#ffffff;--bg2:#f7f0f0;--bg3:#f0e8e8;
   --text:#1a1a1a;--text2:#6b6b67;--text3:#9b9b97;
   --border:rgba(0,0,0,0.12);--border2:rgba(0,0,0,0.22);
+  --brand:#cc2222;--brand-dark:#a81b1b;--brand-light:#fdecea;
   --success:#2d6a2d;--danger:#a32d2d;--info:#185fa5;--warning:#854f0b;
   --bg-success:#eaf3de;--bg-danger:#fcebeb;--bg-info:#e6f1fb;--bg-warning:#faeeda;
   --radius:8px;--radius-lg:12px;
 }
 @media(prefers-color-scheme:dark){
   :root{
-    --bg:#1a1a1a;--bg2:#242424;--bg3:#2c2c2a;
-    --text:#f0f0ee;--text2:#a0a09c;--text3:#707070;
+    --bg:#1a1a1a;--bg2:#2a1a1a;--bg3:#221515;
+    --text:#f0f0ee;--text2:#a0908f;--text3:#707070;
     --border:rgba(255,255,255,0.12);--border2:rgba(255,255,255,0.22);
+    --brand:#e03030;--brand-dark:#cc2222;--brand-light:#3a1515;
   }
 }
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg3);color:var(--text);font-size:14px;line-height:1.5;min-height:100vh;}
@@ -37,8 +39,8 @@ body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;backgrou
 .badge{font-size:12px;padding:3px 10px;border-radius:var(--radius);background:var(--bg2);color:var(--text2);border:0.5px solid var(--border);}
 .btn{cursor:pointer;padding:8px 16px;border-radius:var(--radius);font-size:13px;font-weight:500;border:0.5px solid var(--border2);background:transparent;color:var(--text);font-family:inherit;display:inline-flex;align-items:center;gap:6px;}
 .btn:hover{background:var(--bg2);}
-.btn.primary{background:var(--text);color:var(--bg);border-color:var(--text);}
-.btn.primary:hover{opacity:.85;}
+.btn.primary{background:var(--brand);color:#fff;border-color:var(--brand-dark);}
+.btn.primary:hover{background:var(--brand-dark);opacity:1;}
 .btn.ghost{font-size:12px;padding:4px 8px;border-color:var(--border);color:var(--text2);}
 .btn.ghost:hover{background:var(--bg2);}
 .btn.danger{color:var(--danger);border-color:rgba(163,45,45,.4);font-size:12px;padding:4px 8px;}
@@ -94,12 +96,12 @@ tr:last-child td{border-bottom:none;}
 /* ── Nav tabs ─────────────────────────────────── */
 .nav-tabs{display:flex;gap:0;margin-bottom:1.5rem;border-bottom:0.5px solid var(--border);overflow-x:auto;}
 .tab{padding:8px 13px;font-size:13px;cursor:pointer;border-bottom:2px solid transparent;color:var(--text2);background:none;border-top:none;border-left:none;border-right:none;font-family:inherit;white-space:nowrap;}
-.tab.active{color:var(--text);border-bottom-color:var(--text);font-weight:500;}
+.tab.active{color:var(--brand);border-bottom-color:var(--brand);font-weight:500;}
 
 /* ── Role select ──────────────────────────────── */
 .role-select{display:flex;gap:12px;justify-content:center;margin:2.5rem 0;}
 .role-card{flex:1;max-width:210px;border:0.5px solid var(--border);border-radius:var(--radius-lg);padding:1.5rem 1rem;text-align:center;cursor:pointer;background:var(--bg);}
-.role-card:hover{border-color:var(--border2);background:var(--bg2);}
+.role-card:hover{border-color:var(--brand);background:var(--brand-light);}
 .role-card .icon{font-size:28px;color:var(--text2);margin-bottom:10px;}
 .role-card h3{font-size:15px;font-weight:500;margin-bottom:4px;}
 .role-card p{font-size:12px;color:var(--text2);}
@@ -110,7 +112,7 @@ tr:last-child td{border-bottom:none;}
 .pin-screen p{font-size:14px;color:var(--text2);margin-bottom:1.5rem;}
 .pin-dots{display:flex;justify-content:center;gap:12px;margin-bottom:1.5rem;}
 .pin-dot{width:14px;height:14px;border-radius:50%;border:1.5px solid var(--border2);background:transparent;}
-.pin-dot.filled{background:var(--text);border-color:var(--text);}
+.pin-dot.filled{background:var(--brand);border-color:var(--brand-dark);}
 .pin-pad{display:grid;grid-template-columns:repeat(3,1fr);gap:8px;}
 .pin-key{height:52px;border-radius:var(--radius);border:0.5px solid var(--border);background:transparent;font-size:18px;font-weight:500;cursor:pointer;color:var(--text);font-family:inherit;}
 .pin-key:hover{background:var(--bg2);}
@@ -147,7 +149,7 @@ tr:last-child td{border-bottom:none;}
 
 /* ── Sync indicator ──────────────────────────── */
 .sync-dot{width:7px;height:7px;border-radius:50%;display:inline-block;margin-right:5px;}
-.sync-dot.ok{background:#2d6a2d;}
+.sync-dot.ok{background:var(--brand);}
 .sync-dot.err{background:#a32d2d;}
 .sync-dot.loading{background:#ba7517;animation:pulse 1s infinite;}
 @keyframes pulse{0%,100%{opacity:1;}50%{opacity:.4;}}
@@ -158,13 +160,17 @@ tr:last-child td{border-bottom:none;}
 
 <!-- ══ ROLE SELECT ════════════════════════════════════════ -->
 <div class="screen active" id="screen-role">
-  <div class="top-bar">
-    <h1>Pakelo inventory</h1>
+  <div class="top-bar" style="justify-content:center;border-bottom:none;padding-bottom:0;margin-bottom:0;">
+    <img src="pakelo-logo.jpg" alt="Pakelo Lubricants" style="height:64px;border-radius:var(--radius);object-fit:cover;">
+  </div>
+  <div style="height:1px;background:var(--border);margin:1rem 0 1.5rem;">
+  </div>
+  <div style="display:none"><h1>Pakelo inventory</h1>
     <div id="sync-status" style="font-size:12px;color:var(--text2);display:flex;align-items:center;gap:4px;">
       <span class="sync-dot loading" id="sync-dot"></span><span id="sync-label">Connecting…</span>
     </div>
-  </div>
-  <p style="font-size:14px;color:var(--text2);margin-bottom:.5rem;">Select your role to continue.</p>
+  </div></div>
+  <p style="font-size:14px;color:var(--text2);margin-bottom:.5rem;text-align:center;">Select your role to continue.</p>
   <div class="role-select">
     <div class="role-card" onclick="goStockroom()">
       <div class="icon"><i class="ti ti-package"></i></div>
@@ -180,6 +186,7 @@ tr:last-child td{border-bottom:none;}
 <!-- ══ PIN ════════════════════════════════════════════════ -->
 <div class="screen" id="screen-pin">
   <div class="pin-screen">
+    <img src="pakelo-logo.jpg" alt="Pakelo" style="height:48px;border-radius:var(--radius);margin-bottom:1rem;">
     <h2>Manager access</h2><p>Enter your 4-digit PIN</p>
     <div class="pin-dots" id="pin-dots">
       <div class="pin-dot" id="dot-0"></div><div class="pin-dot" id="dot-1"></div>
@@ -200,7 +207,7 @@ tr:last-child td{border-bottom:none;}
 <!-- ══ STOCKROOM ══════════════════════════════════════════ -->
 <div class="screen" id="screen-stockroom">
   <div class="top-bar">
-    <h1>Stockroom</h1>
+    <div style="display:flex;align-items:center;gap:10px;"><img src="pakelo-logo.jpg" alt="Pakelo" style="height:34px;border-radius:4px;"><h1>Stockroom</h1></div>
     <div style="display:flex;gap:8px;align-items:center;">
       <span class="badge">Stockroom view</span>
       <button class="btn small" onclick="goRole()">Switch role</button>
@@ -258,7 +265,7 @@ tr:last-child td{border-bottom:none;}
 <!-- ══ MANAGER ════════════════════════════════════════════ -->
 <div class="screen" id="screen-manager">
   <div class="top-bar">
-    <h1>Manager</h1>
+    <div style="display:flex;align-items:center;gap:10px;"><img src="pakelo-logo.jpg" alt="Pakelo" style="height:34px;border-radius:4px;"><h1>Manager</h1></div>
     <div style="display:flex;gap:8px;align-items:center;">
       <span class="badge">Manager</span>
       <button class="btn export" onclick="runExport()"><i class="ti ti-download"></i> Export Excel</button>
