@@ -889,6 +889,16 @@ async function logSr(){
   const product=selected.sr;
   const qty=parseInt(document.getElementById('sr-qty').value);
   if(!date||!person||!product||!qty){ alert('Please fill in date, customer/person, product and quantity.'); return; }
+  if(srType!=='in'){
+    const currentStock=getStock(product.id);
+    if(currentStock<=0){
+      const go=confirm('⚠️ '+product.name+' ('+product.volume+') has no stock (current: '+currentStock+'). Log this removal anyway?');
+      if(!go) return;
+    } else if(qty>currentStock){
+      const go=confirm('⚠️ You are removing '+qty+' units but only '+currentStock+' are in stock for '+product.name+' ('+product.volume+'). This will result in negative stock. Continue anyway?');
+      if(!go) return;
+    }
+  }
   const data={type:srType,date,person,product_id:product.id,qty,submitter:document.getElementById('sr-submitter').value.trim()||null,notes:document.getElementById('sr-notes').value.trim()||null};
   try{
     const row=await sbInsert('movements',data);
@@ -906,6 +916,14 @@ async function logMgrMov(){
   const qty=parseInt(isSale?document.getElementById('mgr-mov-qty').value:document.getElementById('mgr-mov-qty-b').value);
   const salePrice=isSale?parseFloat(document.getElementById('mgr-sale-price').value):null;
   if(!date||!product||!qty){ alert('Please fill in date, product and quantity.'); return; }
+  const currentStock=getStock(product.id);
+  if(currentStock<=0){
+    const go=confirm('⚠️ '+product.name+' ('+product.volume+') has no stock (current: '+currentStock+'). Log this movement anyway?');
+    if(!go) return;
+  } else if(qty>currentStock){
+    const go=confirm('⚠️ You are removing '+qty+' units but only '+currentStock+' are in stock for '+product.name+' ('+product.volume+'). This will result in negative stock. Continue anyway?');
+    if(!go) return;
+  }
   const data={type:mgrType,date,person:document.getElementById('mgr-mov-person').value.trim(),product_id:product.id,qty,sale_price:(isSale&&!isNaN(salePrice))?salePrice:null,submitter:document.getElementById('mgr-mov-submitter').value.trim()||null,notes:document.getElementById('mgr-mov-notes').value.trim()||null};
   try{
     const row=await sbInsert('movements',data);
