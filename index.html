@@ -372,6 +372,20 @@ tr:last-child td{border-bottom:none;}
 
   <!-- KPIs -->
   <div id="mgr-kpi" style="display:none;">
+    <div class="card" style="padding:.875rem 1.25rem;margin-bottom:1rem;">
+      <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
+        <div class="form-group" style="flex:1;min-width:120px;">
+          <label>From date</label>
+          <input type="date" id="kpi-from" onchange="renderKpi()">
+        </div>
+        <div class="form-group" style="flex:1;min-width:120px;">
+          <label>To date</label>
+          <input type="date" id="kpi-to" onchange="renderKpi()">
+        </div>
+        <button class="btn" onclick="clearKpiFilters()" style="margin-bottom:1px;">Clear (all time)</button>
+      </div>
+      <div id="kpi-range-label" style="font-size:12px;color:var(--text2);margin-top:6px;"></div>
+    </div>
     <div class="kpi-section"><div class="kpi-section-title">Revenue & margin</div><div class="metrics-grid" id="kpi-revenue"></div></div>
     <div class="kpi-section"><div class="kpi-section-title">Stock health</div><div class="metrics-grid" id="kpi-stock"></div></div>
     <div class="kpi-section"><div class="kpi-section-title">Sales activity</div><div class="metrics-grid" id="kpi-sales"></div></div>
@@ -460,7 +474,24 @@ tr:last-child td{border-bottom:none;}
 
   <!-- All movements -->
   <div id="mgr-history" style="display:none;">
-    <input class="search-filter" type="text" placeholder="Filter…" oninput="renderMgrHistory(this.value)">
+    <div class="card" style="padding:.875rem 1.25rem;margin-bottom:.75rem;">
+      <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
+        <div class="form-group" style="flex:1;min-width:120px;">
+          <label>From date</label>
+          <input type="date" id="hist-from" onchange="renderMgrHistory(document.getElementById('hist-search').value)">
+        </div>
+        <div class="form-group" style="flex:1;min-width:120px;">
+          <label>To date</label>
+          <input type="date" id="hist-to" onchange="renderMgrHistory(document.getElementById('hist-search').value)">
+        </div>
+        <div class="form-group" style="flex:2;min-width:160px;">
+          <label>Search</label>
+          <input type="text" id="hist-search" placeholder="Filter by product, person, type…" oninput="renderMgrHistory(this.value)">
+        </div>
+        <button class="btn" onclick="clearHistoryFilters()" style="margin-bottom:1px;">Clear</button>
+      </div>
+      <div id="hist-summary" style="margin-top:10px;display:none;padding-top:10px;border-top:0.5px solid var(--border);display:flex;flex-wrap:wrap;gap:16px;font-size:13px;"></div>
+    </div>
     <div class="card" style="padding:0;overflow:auto;">
       <table><thead><tr><th>Date</th><th>Type</th><th>Product</th><th>Vol</th><th>Qty</th><th>Customer</th><th>Sale price</th><th>Cost/unit</th><th>Retail</th><th>Submitted by</th><th>Notes</th><th>Invoice</th><th></th></tr></thead>
       <tbody id="mgr-hist-body"></tbody></table>
@@ -825,9 +856,40 @@ function showDetails(pid){
 function renderMgrHistory(filter){
   currentMgrHistFilter=filter||'';
   const f=currentMgrHistFilter.toLowerCase();
+  const fromDate=document.getElementById('hist-from')?document.getElementById('hist-from').value:'';
+  const toDate=document.getElementById('hist-to')?document.getElementById('hist-to').value:'';
   const tbody=document.getElementById('mgr-hist-body');
   const sorted=[...state.movements].sort((a,b)=>b.date.localeCompare(a.date));
-  const filtered=sorted.filter(m=>{ const p=state.products.find(x=>x.id===m.product_id); return !f||(p&&p.name.toLowerCase().includes(f))||(m.person&&m.person.toLowerCase().includes(f))||(m.submitter&&m.submitter.toLowerCase().includes(f))||m.type.includes(f); });
+  const filtered=sorted.filter(m=>{
+    const p=state.products.find(x=>x.id===m.product_id);
+    const textMatch=!f||(p&&p.name.toLowerCase().includes(f))||(m.person&&m.person.toLowerCase().includes(f))||(m.submitter&&m.submitter.toLowerCase().includes(f))||m.type.includes(f);
+    const fromMatch=!fromDate||m.date>=fromDate;
+    const toMatch=!toDate||m.date<=toDate;
+    return textMatch&&fromMatch&&toMatch;
+  });
+  // Show summary for filtered period
+  const summaryEl=document.getElementById('hist-summary');
+  if(summaryEl&&(fromDate||toDate)){
+    const sales=filtered.filter(m=>m.type==='sale');
+    let revenue=0,cogs=0;
+    sales.forEach(m=>{
+      const last=getLastRetailPurchase(m.product_id);
+      const retail=m.sale_price!=null?m.sale_price:(last?calcRetail(last):0);
+      revenue+=retail*m.qty;
+      if(last)cogs+=last.cost_per_unit*m.qty;
+    });
+    const unitsOut=filtered.filter(m=>m.type!=='in').reduce((s,m)=>s+m.qty,0);
+    summaryEl.style.display='flex';
+    summaryEl.innerHTML=
+      '<span><strong>Period:</strong> '+(fromDate||'start')+' → '+(toDate||'today')+'</span>'
+      +'<span><strong>Sales:</strong> '+sales.length+' transactions</span>'
+      +'<span><strong>Units out:</strong> '+unitsOut+'</span>'
+      +'<span><strong>Revenue:</strong> €'+revenue.toFixed(2)+'</span>'
+      +'<span><strong>Gross profit:</strong> €'+(revenue-cogs).toFixed(2)+'</span>'
+      +'<span style="color:var(--text2);"><strong>Margin:</strong> '+(revenue>0?((revenue-cogs)/revenue*100).toFixed(1)+'%':'—')+'</span>';
+  } else if(summaryEl){
+    summaryEl.style.display='none';
+  }
   if(!filtered.length){ tbody.innerHTML='<tr><td colspan="13" class="empty-state">No movements yet</td></tr>'; return; }
   const tagMap={in:'<span class="tag in">Purchase</span>',out:'<span class="tag out">Removal</span>',sale:'<span class="tag sale">Sale</span>',loss:'<span class="tag loss">Loss</span>'};
   tbody.innerHTML=filtered.map(m=>{ const p=state.products.find(x=>x.id===m.product_id); const retail=m.type==='in'&&m.margin!=null?(m.cost_per_unit/(1-m.margin/100)):null; return `<tr id="mrow-${m.id}"><td>${m.date}</td><td>${tagMap[m.type]||'<span class="tag out">Out</span>'}${m.promo?'<span class="promo-badge">promo</span>':''}</td><td>${p?catDot(p.category)+p.name:'—'}</td><td>${p?volPill(p.volume):'—'}</td><td>${m.qty}</td><td>${dash(m.person)}</td><td>${m.sale_price!=null?'€'+Number(m.sale_price).toFixed(2):dash(null)}</td><td>${m.cost_per_unit!=null?'€'+Number(m.cost_per_unit).toFixed(2):dash(null)}</td><td>${retail?'€'+retail.toFixed(2):dash(null)}</td><td>${dash(m.submitter)}</td><td>${noteCell(m.notes)}</td><td style="font-size:12px;color:var(--text2);">${m.invoice||'—'}</td><td><div class="action-btns"><button class="btn ghost" onclick="openEditMovement('${m.id}','mgr')"><i class="ti ti-edit"></i></button><button class="btn danger" onclick="deleteMovement('${m.id}','mgr')"><i class="ti ti-trash"></i></button></div></td></tr>`; }).join('');
@@ -1015,10 +1077,30 @@ async function toggleIgnoreLowStock(pid){
 
 
 
+function clearKpiFilters(){
+  document.getElementById('kpi-from').value='';
+  document.getElementById('kpi-to').value='';
+  renderKpi();
+}
+function clearHistoryFilters(){
+  document.getElementById('hist-from').value='';
+  document.getElementById('hist-to').value='';
+  document.getElementById('hist-search').value='';
+  renderMgrHistory('');
+}
+
 function renderKpi(){
-  const sales=state.movements.filter(m=>m.type==='sale');
-  const losses=state.movements.filter(m=>m.type==='loss');
-  const purchases=state.movements.filter(m=>m.type==='in');
+  const fromDate=document.getElementById('kpi-from')?document.getElementById('kpi-from').value:'';
+  const toDate=document.getElementById('kpi-to')?document.getElementById('kpi-to').value:'';
+  const rangeLabel=document.getElementById('kpi-range-label');
+  if(rangeLabel){
+    if(fromDate||toDate) rangeLabel.textContent='Showing: '+(fromDate||'start')+' → '+(toDate||'today');
+    else rangeLabel.textContent='Showing: all time';
+  }
+  function inRange(m){ return (!fromDate||m.date>=fromDate)&&(!toDate||m.date<=toDate); }
+  const sales=state.movements.filter(m=>m.type==='sale'&&inRange(m));
+  const losses=state.movements.filter(m=>m.type==='loss'&&inRange(m));
+  const purchases=state.movements.filter(m=>m.type==='in'&&inRange(m));
   let totalRevenue=0,totalCOGS=0,totalLossValue=0;
   sales.forEach(m=>{ const last=getLastRetailPurchase(m.product_id); const retail=m.sale_price!=null?m.sale_price:(last?calcRetail(last):0); totalRevenue+=retail*m.qty; if(last)totalCOGS+=last.cost_per_unit*m.qty; });
   losses.forEach(m=>{ const last=getLastRetailPurchase(m.product_id); if(last)totalLossValue+=last.cost_per_unit*m.qty; });
