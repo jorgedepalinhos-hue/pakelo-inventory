@@ -238,6 +238,16 @@ tr:last-child td{border-bottom:none;}
   /* Overflow tables scroll horizontally */
   .card[style*="overflow:auto"]{-webkit-overflow-scrolling:touch;}
 }
+
+/* Low stock row highlight */
+tr.row-low-stock td {
+  background: #fff0f0;
+}
+@media(prefers-color-scheme:dark){
+  tr.row-low-stock td {
+    background: #2a1515;
+  }
+}
 </style>
 </head>
 <body>
@@ -827,7 +837,7 @@ function renderMgrStock(filter){
   const warn=isLow?'<span data-pid="'+pid+'" onclick="toggleIgnoreLowStock(this.dataset.pid)" style="cursor:pointer;" title="Click to ignore">⚠</span>':'';
   const stockCell='<td class="'+(isLow?'low-stock':'')+'">'+qty+' '+warn+sw+'</td>';
   const detailBtn=hasDetails?'<button class="btn ghost" data-pid="'+pid+'" onclick="showDetails(this.dataset.pid)">Details</button>':'—';
-  return '<tr>'
+  return '<tr class="'+(isLow?'row-low-stock':'')+'">'
     +'<td>'+catDot(p.category)+p.name+'</td>'
     +'<td>'+volPill(p.volume)+'</td>'
     +'<td style="font-size:12px;color:var(--text2);">'+(p.sku||'—')+'</td>'
