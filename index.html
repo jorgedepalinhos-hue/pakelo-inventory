@@ -341,7 +341,7 @@ tr.row-low-stock td {
   <div id="sr-stock" style="display:none;">
     <div class="cat-legend" id="sr-cat-legend"></div>
     <input class="search-filter" type="text" placeholder="Filter products…" oninput="renderSrStock(this.value)">
-    <div class="card" style="padding:0;overflow:auto;"><table><thead><tr><th>Product</th><th>Volume</th><th>SKU</th><th>In stock</th></tr></thead><tbody id="sr-stock-body"></tbody></table></div>
+    <div id="sr-stock-wrapper"><table><thead><tr></tr></thead><tbody id="sr-stock-body"></tbody></table></div>
   </div>
 
   <div id="sr-history" style="display:none;">
@@ -795,12 +795,57 @@ document.addEventListener('click',e=>{
 });
 
 // ── Render: stockroom stock ───────────────────────────
+
+function toggleSrDetail(pid){
+  const row=document.getElementById('sr-detail-'+pid);
+  if(row) row.style.display=row.style.display==='none'?'':'none';
+}
+
 function renderSrStock(filter){
   const f=(filter||'').toLowerCase();
-  const tbody=document.getElementById('sr-stock-body');
-  const prods=state.products.filter(p=>!f||p.name.toLowerCase().includes(f)||(p.sku&&p.sku.toLowerCase().includes(f)));
-  if(!prods.length){ tbody.innerHTML='<tr><td colspan="4" class="empty-state">No products found</td></tr>'; return; }
-  tbody.innerHTML=prods.map(p=>{ const qty=getStock(p.id); const isLow=qty<=2&&!p.ignore_low_stock; return `<tr><td>${catDot(p.category)}${p.name}</td><td>${volPill(p.volume)}</td><td style="font-size:12px;color:var(--text2);">${p.sku||'—'}</td><td class="${isLow?'low-stock':''}">${qty}${isLow?' ⚠':''}</td></tr>`; }).join('');
+  const container=document.getElementById('sr-stock-body').closest('.card')||document.getElementById('sr-stock-body').parentNode;
+  const allProds=state.products.filter(p=>!f||p.name.toLowerCase().includes(f)||(p.sku&&p.sku.toLowerCase().includes(f)));
+  if(!allProds.length){
+    document.getElementById('sr-stock-body').innerHTML='<tr><td colspan="4" class="empty-state">No products found</td></tr>';
+    return;
+  }
+  // Replace entire table section with grouped layout
+  const wrapper=document.getElementById('sr-stock-wrapper');
+  if(!wrapper) return;
+  let html='';
+  CAT_ORDER.forEach(cat=>{
+    const group=sortProducts(allProds.filter(p=>(p.category||'')===(cat||'')));
+    if(!group.length) return;
+    const c=CATS[cat]||CATS[''];
+    html+='<div style="margin-bottom:1rem;">'
+      +'<div class="cat-group-header"><span class="cat-dot" style="background:'+c.color+'"></span>'+(cat||'Uncategorised')+'</div>'
+      +'<div class="card" style="padding:0;overflow:auto;margin-bottom:0;">'
+      +'<table><thead><tr><th>Product</th><th>Volume</th><th>SKU</th><th>In stock</th><th>Details</th></tr></thead><tbody>'
+      +group.map((p,i)=>{
+        const qty=getStock(p.id);
+        const isLow=qty<=2&&!p.ignore_low_stock;
+        const prevName=i>0?group[i-1].name:'';
+        const border=p.name!==prevName&&i>0?'border-top:2px solid var(--border2);':'';
+        const hasDetails=p.spec||p.notes;
+        const detailRow=hasDetails
+          ?'<tr id="sr-detail-'+p.id+'" style="display:none;"><td colspan="5" style="padding:0;">'
+            +'<div style="background:var(--bg2);padding:10px 14px;font-size:13px;">'
+            +(p.spec?'<div style="margin-bottom:4px;"><span style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text2);">Specs</span><br>'+p.spec+'</div>':'')
+            +(p.notes?'<div><span style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text2);">Notes</span><br>'+p.notes+'</div>':'')
+            +'</div></td></tr>'
+          :'';
+        return '<tr class="'+(isLow?'row-low-stock':'')+'" style="'+border+'">'
+          +'<td>'+catDot(p.category)+p.name+'</td>'
+          +'<td>'+volPill(p.volume)+'</td>'
+          +'<td style="font-size:12px;color:var(--text2);">'+(p.sku||'—')+'</td>'
+          +'<td class="'+(isLow?'low-stock':'')+'">'+qty+(isLow?' ⚠':'')+'</td>'
+          +'<td>'+(hasDetails?'<button class="btn ghost" data-pid="'+p.id+'" onclick="toggleSrDetail(this.dataset.pid)">Details</button>':'—')+'</td>'
+          +'</tr>'
+          +detailRow;
+      }).join('')
+      +'</tbody></table></div></div>';
+  });
+  wrapper.innerHTML=html;
 }
 
 // ── Render: stockroom history ─────────────────────────
