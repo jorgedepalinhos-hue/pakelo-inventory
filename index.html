@@ -751,6 +751,17 @@ function catDot(cat){ const c=CATS[cat]||CATS[''];return `<span class="cat-dot" 
 function catPill(cat){ const c=CATS[cat]||CATS[''];return `<span style="font-size:11px;padding:2px 7px;border-radius:99px;background:${c.light};color:${c.text};font-weight:500;">${cat||'—'}</span>`; }
 function volPill(vol){ return `<span class="vol-pill">${vol||'?'}</span>`; }
 
+
+const VOL_ORDER = {'1L':1,'4L':2,'5L':3,'20L':4,'60L':5,'208L':6};
+function sortProducts(prods){
+  return [...prods].sort((a,b)=>{
+    const nameA=(a.name||'').toLowerCase();
+    const nameB=(b.name||'').toLowerCase();
+    if(nameA<nameB) return -1;
+    if(nameA>nameB) return 1;
+    return (VOL_ORDER[a.volume]||99)-(VOL_ORDER[b.volume]||99);
+  });
+}
 function renderCatLegend(id){
   const el=document.getElementById(id); if(!el)return;
   el.innerHTML=Object.entries(CATS).filter(([k])=>k).map(([k,v])=>`<div class="cat-legend-item"><span class="cat-dot" style="background:${v.color}"></span>${k}</div>`).join('');
@@ -823,7 +834,11 @@ function renderMgrStock(filter){
   CAT_ORDER.forEach(cat=>{
     const group=prods.filter(p=>(p.category||'')===(cat||'')); if(!group.length)return;
     const c=CATS[cat]||CATS[''];
-    html+=`<div style="margin-bottom:1rem;"><div class="cat-group-header"><span class="cat-dot" style="background:${c.color}"></span>${cat||'Uncategorised'}</div><div class="card" style="padding:0;overflow:auto;margin-bottom:0;"><table><thead><tr><th>Product</th><th>Volume</th><th>SKU</th><th>In stock</th><th>Last buy cost</th><th>Retail price</th><th>Margin</th><th>Details</th></tr></thead><tbody>${group.map(p=>{
+    const sortedGroup=sortProducts(group);
+    html+=`<div style="margin-bottom:1rem;"><div class="cat-group-header"><span class="cat-dot" style="background:${c.color}"></span>${cat||'Uncategorised'}</div><div class="card" style="padding:0;overflow:auto;margin-bottom:0;"><table><thead><tr><th>Product</th><th>Volume</th><th>SKU</th><th>In stock</th><th>Last buy cost</th><th>Retail price</th><th>Margin</th><th>Details</th></tr></thead><tbody>${sortedGroup.map((p,i)=>{
+  const prevName=i>0?sortedGroup[i-1].name:'';
+  const isNewName=p.name!==prevName;
+  const topBorder=isNewName&&i>0?'border-top:2px solid var(--border2);':'';
   const qty=getStock(p.id);
   const last=getLastRetailPurchase(p.id);
   const retail=last?calcRetail(last):null;
@@ -837,7 +852,7 @@ function renderMgrStock(filter){
   const warn=isLow?'<span data-pid="'+pid+'" onclick="toggleIgnoreLowStock(this.dataset.pid)" style="cursor:pointer;" title="Click to ignore">⚠</span>':'';
   const stockCell='<td class="'+(isLow?'low-stock':'')+'">'+qty+' '+warn+sw+'</td>';
   const detailBtn=hasDetails?'<button class="btn ghost" data-pid="'+pid+'" onclick="showDetails(this.dataset.pid)">Details</button>':'—';
-  return '<tr class="'+(isLow?'row-low-stock':'')+'">'
+  return '<tr class="'+(isLow?'row-low-stock':''+'')+'" style="'+topBorder+'">'
     +'<td>'+catDot(p.category)+p.name+'</td>'
     +'<td>'+volPill(p.volume)+'</td>'
     +'<td style="font-size:12px;color:var(--text2);">'+(p.sku||'—')+'</td>'
@@ -915,7 +930,10 @@ function renderProductList(filter){
   CAT_ORDER.forEach(cat=>{
     const group=prods.filter(p=>(p.category||'')===(cat||'')); if(!group.length)return;
     const c=CATS[cat]||CATS[''];
-    html+=`<div style="margin-bottom:1rem;"><div class="cat-group-header"><span class="cat-dot" style="background:${c.color}"></span>${cat||'Uncategorised'}</div><div class="card" style="padding:0;overflow:auto;margin-bottom:0;"><table><thead><tr><th>Product</th><th>Volume</th><th>SKU</th><th>In stock</th><th>Details</th><th></th><th></th></tr></thead><tbody>${group.map(p=>{ const qty=getStock(p.id); const hasDetails=p.spec||p.notes; return `<tr><td>${catDot(p.category)}${p.name}</td><td>${volPill(p.volume)}</td><td style="font-size:12px;color:var(--text2);">${p.sku||'—'}</td><td class="${qty<=2?'low-stock':''}">${qty}</td><td>${hasDetails?`<button class="btn ghost" onclick="toggleProdDetail('${p.id}')">View</button>`:'—'}</td><td><button class="btn ghost" onclick="openEditProduct('${p.id}')"><i class="ti ti-edit"></i></button></td><td><button class="btn small danger" onclick="deleteProd('${p.id}')"><i class="ti ti-trash"></i></button></td></tr><tr id="prod-detail-${p.id}" style="display:none;"><td colspan="7" style="padding:0;"><div style="background:var(--bg2);padding:10px 14px;font-size:13px;">${p.spec?`<div style="margin-bottom:4px;"><span style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text2);">Specs</span><br>${esc(p.spec)}</div>`:''}${p.notes?`<div><span style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text2);">Notes</span><br>${esc(p.notes)}</div>`:''}${!p.spec&&!p.notes?'<span style="color:var(--text2);">No details</span>':''}</div></td></tr>`; }).join('')}</tbody></table></div></div>`;
+    const sortedGroup2=sortProducts(group);
+    html+=`<div style="margin-bottom:1rem;"><div class="cat-group-header"><span class="cat-dot" style="background:${c.color}"></span>${cat||'Uncategorised'}</div><div class="card" style="padding:0;overflow:auto;margin-bottom:0;"><table><thead><tr><th>Product</th><th>Volume</th><th>SKU</th><th>In stock</th><th>Details</th><th></th><th></th></tr></thead><tbody>${sortedGroup2.map((p,i)=>{
+  const prevName2=i>0?sortedGroup2[i-1].name:'';
+  const topBorder2=p.name!==prevName2&&i>0?'border-top:2px solid var(--border2);':''; const qty=getStock(p.id); const hasDetails=p.spec||p.notes; return `<tr style="${topBorder2}"><td>${catDot(p.category)}${p.name}</td><td>${volPill(p.volume)}</td><td style="font-size:12px;color:var(--text2);">${p.sku||'—'}</td><td class="${qty<=2?'low-stock':''}">${qty}</td><td>${hasDetails?`<button class="btn ghost" onclick="toggleProdDetail('${p.id}')">View</button>`:'—'}</td><td><button class="btn ghost" onclick="openEditProduct('${p.id}')"><i class="ti ti-edit"></i></button></td><td><button class="btn small danger" onclick="deleteProd('${p.id}')"><i class="ti ti-trash"></i></button></td></tr><tr id="prod-detail-${p.id}" style="display:none;"><td colspan="7" style="padding:0;"><div style="background:var(--bg2);padding:10px 14px;font-size:13px;">${p.spec?`<div style="margin-bottom:4px;"><span style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text2);">Specs</span><br>${esc(p.spec)}</div>`:''}${p.notes?`<div><span style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text2);">Notes</span><br>${esc(p.notes)}</div>`:''}${!p.spec&&!p.notes?'<span style="color:var(--text2);">No details</span>':''}</div></td></tr>`; }).join('')}</tbody></table></div></div>`;
   });
   container.innerHTML=html;
 }
