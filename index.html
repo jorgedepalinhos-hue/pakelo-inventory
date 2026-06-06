@@ -519,6 +519,15 @@ tr.row-low-stock td {
   <!-- Products -->
   <div id="mgr-products" style="display:none;">
     <div class="card">
+      <div class="collapsible-header" onclick="toggleCollapsible(this)"><span>⚙ Low stock thresholds</span><i class="ti ti-chevron-down chevron"></i></div>
+      <div class="collapsible-body" style="display:none;">
+        <p style="font-size:13px;color:var(--text2);margin-bottom:12px;">Set how many cans trigger the low stock warning, per container size. The warning shows when stock is at or below this number.</p>
+        <div id="threshold-fields" class="form-row three"></div>
+        <button class="btn primary" onclick="saveThresholds()" style="margin-top:8px;">Save thresholds</button>
+        <div class="success-msg" id="threshold-success"></div>
+      </div>
+    </div>
+    <div class="card">
       <div class="section-title">Add new product</div>
       <div class="form-row">
         <div class="form-group"><label>Product name</label><input type="text" id="prod-name" placeholder="e.g. Pakelo Krypton XT 5W-40"></div>
@@ -573,6 +582,8 @@ const CAT_ORDER = ['Engine oil','Gearbox / diff oil','Brake fluid','Steering / h
 const TYPE_LABELS = {in:'Purchase',out:'Removal',sale:'Sale',loss:'Loss / Breakage'};
 
 let state = {products:[], movements:[]};
+let lowStockThresholds = {'1L':4,'4L':2,'5L':2,'20L':2,'60L':1,'208L':1};
+const DEFAULT_THRESHOLDS = {'1L':4,'4L':2,'5L':2,'20L':2,'60L':1,'208L':1};
 let selected = {sr:null,'mgr-mov':null,mgr:null};
 let srType='out', mgrType='sale';
 let pinBuffer='';
@@ -613,6 +624,7 @@ async function loadFromSupabase(){
     ]);
     state.products = (products || []).map(p=>({...p, ignore_low_stock:p.ignore_low_stock===true}));
     state.movements = movements || [];
+    await loadThresholds();
     supabaseOk = true;
     setSyncStatus('ok','Live');
   } catch(e){
@@ -713,7 +725,7 @@ function mgrTab(t,el){
   if(t==='purchase'){ initInvoiceDate(); if(!invoiceLines.length) addInvoiceLine(); }
   if(t==='kpi') renderKpi();
   if(t==='history') renderMgrHistory('');
-  if(t==='products') renderProductList('');
+  if(t==='products'){ renderProductList(''); renderThresholdFields(); }
 }
 
 function setSrType(type){
@@ -782,6 +794,8 @@ function renderCatLegend(id){
 
 // ── Stock calculations ────────────────────────────────
 function getStock(pid){ return state.movements.reduce((s,m)=>m.product_id===pid?s+(m.type==='in'?m.qty:-m.qty):s,0); }
+function lowThreshold(volume){ return lowStockThresholds[volume]!=null?lowStockThresholds[volume]:2; }
+function isProductLow(p){ const qty=getStock(p.id); return qty<=lowThreshold(p.volume)&&!p.ignore_low_stock; }
 function getLastRetailPurchase(pid){ const p=state.movements.filter(m=>m.product_id===pid&&m.type==='in'&&m.cost_per_unit!=null&&!m.promo); return p.length?p[p.length-1]:null; }
 function calcRetail(p){ if(!p)return null; const m=p.margin||30; return p.cost_per_unit/(1-m/100); }
 
@@ -836,7 +850,7 @@ function renderSrStock(filter){
       +'<table><thead><tr><th>Product</th><th>Volume</th><th>SKU</th><th>In stock</th><th>Details</th></tr></thead><tbody>'
       +group.map((p,i)=>{
         const qty=getStock(p.id);
-        const isLow=qty<=2&&!p.ignore_low_stock;
+        const isLow=qty<=lowThreshold(p.volume)&&!p.ignore_low_stock;
         const prevName=i>0?group[i-1].name:'';
         const border=p.name!==prevName&&i>0?'border-top:2px solid var(--border2);':'';
         const hasDetails=p.spec||p.notes;
@@ -876,7 +890,7 @@ function renderSrHistory(filter){
 function renderMgrDashboard(){
   const totalUnits=state.products.reduce((s,p)=>s+Math.max(0,getStock(p.id)),0);
   const totalOut=state.movements.filter(m=>m.type!=='in').reduce((s,m)=>s+m.qty,0);
-  const lowStock=state.products.filter(p=>getStock(p.id)<=2&&getStock(p.id)>=0&&!p.ignore_low_stock).length;
+  const lowStock=state.products.filter(p=>{const q=getStock(p.id);return q<=lowThreshold(p.volume)&&q>=0&&!p.ignore_low_stock;}).length;
   const totalValue=state.products.reduce((s,p)=>{ const last=getLastRetailPurchase(p.id); if(!last)return s; return s+Math.max(0,getStock(p.id))*calcRetail(last); },0);
   document.getElementById('mgr-metrics').innerHTML=`<div class="metric-card"><div class="label">Products</div><div class="value">${state.products.length}</div></div><div class="metric-card"><div class="label">Units in stock</div><div class="value">${totalUnits}</div></div><div class="metric-card"><div class="label">Total removed</div><div class="value">${totalOut}</div></div><div class="metric-card"><div class="label">Retail stock value</div><div class="value">€${totalValue.toFixed(0)}</div></div><div class="metric-card"><div class="label" style="color:var(--danger)">Low stock</div><div class="value" style="color:var(--danger)">${lowStock}</div></div>`;
   renderCatLegend('mgr-dash-legend');
@@ -902,7 +916,7 @@ function renderMgrStock(filter){
   const retail=last?calcRetail(last):null;
   const margin=last?(last.margin||30):null;
   const hasDetails=p.spec||p.notes;
-  const isLow=qty<=2&&!p.ignore_low_stock;
+  const isLow=qty<=lowThreshold(p.volume)&&!p.ignore_low_stock;
   const pid=p.id;
   const bg=p.ignore_low_stock?'#639922':'rgba(128,128,128,0.25)';
   const kl=p.ignore_low_stock?'12px':'1.5px';
@@ -991,7 +1005,7 @@ function renderProductList(filter){
     const sortedGroup2=sortProducts(group);
     html+=`<div style="margin-bottom:1rem;"><div class="cat-group-header"><span class="cat-dot" style="background:${c.color}"></span>${cat||'Uncategorised'}</div><div class="card" style="padding:0;overflow:auto;margin-bottom:0;"><table><thead><tr><th>Product</th><th>Volume</th><th>SKU</th><th>In stock</th><th>Details</th><th></th><th></th></tr></thead><tbody>${sortedGroup2.map((p,i)=>{
   const prevName2=i>0?sortedGroup2[i-1].name:'';
-  const topBorder2=p.name!==prevName2&&i>0?'border-top:2px solid var(--border2);':''; const qty=getStock(p.id); const hasDetails=p.spec||p.notes; return `<tr style="${topBorder2}"><td>${catDot(p.category)}${p.name}</td><td>${volPill(p.volume)}</td><td style="font-size:12px;color:var(--text2);">${p.sku||'—'}</td><td class="${qty<=2?'low-stock':''}">${qty}</td><td>${hasDetails?`<button class="btn ghost" onclick="toggleProdDetail('${p.id}')">View</button>`:'—'}</td><td><button class="btn ghost" onclick="openEditProduct('${p.id}')"><i class="ti ti-edit"></i></button></td><td><button class="btn small danger" onclick="deleteProd('${p.id}')"><i class="ti ti-trash"></i></button></td></tr><tr id="prod-detail-${p.id}" style="display:none;"><td colspan="7" style="padding:0;"><div style="background:var(--bg2);padding:10px 14px;font-size:13px;">${p.spec?`<div style="margin-bottom:4px;"><span style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text2);">Specs</span><br>${esc(p.spec)}</div>`:''}${p.notes?`<div><span style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text2);">Notes</span><br>${esc(p.notes)}</div>`:''}${!p.spec&&!p.notes?'<span style="color:var(--text2);">No details</span>':''}</div></td></tr>`; }).join('')}</tbody></table></div></div>`;
+  const topBorder2=p.name!==prevName2&&i>0?'border-top:2px solid var(--border2);':''; const qty=getStock(p.id); const hasDetails=p.spec||p.notes; return `<tr style="${topBorder2}"><td>${catDot(p.category)}${p.name}</td><td>${volPill(p.volume)}</td><td style="font-size:12px;color:var(--text2);">${p.sku||'—'}</td><td class="${qty<=lowThreshold(p.volume)&&!p.ignore_low_stock?'low-stock':''}">${qty}</td><td>${hasDetails?`<button class="btn ghost" onclick="toggleProdDetail('${p.id}')">View</button>`:'—'}</td><td><button class="btn ghost" onclick="openEditProduct('${p.id}')"><i class="ti ti-edit"></i></button></td><td><button class="btn small danger" onclick="deleteProd('${p.id}')"><i class="ti ti-trash"></i></button></td></tr><tr id="prod-detail-${p.id}" style="display:none;"><td colspan="7" style="padding:0;"><div style="background:var(--bg2);padding:10px 14px;font-size:13px;">${p.spec?`<div style="margin-bottom:4px;"><span style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text2);">Specs</span><br>${esc(p.spec)}</div>`:''}${p.notes?`<div><span style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text2);">Notes</span><br>${esc(p.notes)}</div>`:''}${!p.spec&&!p.notes?'<span style="color:var(--text2);">No details</span>':''}</div></td></tr>`; }).join('')}</tbody></table></div></div>`;
   });
   container.innerHTML=html;
 }
@@ -1218,6 +1232,50 @@ function clearHistoryFilters(){
   renderMgrHistory('');
 }
 
+
+// ── Low stock thresholds ──────────────────────────────
+const VOL_LIST = ['1L','4L','5L','20L','60L','208L'];
+
+async function loadThresholds(){
+  try{
+    const rows=await sbFetch('settings?key=eq.low_stock_thresholds');
+    if(rows&&rows.length&&rows[0].value){
+      lowStockThresholds={...DEFAULT_THRESHOLDS, ...rows[0].value};
+    }
+  } catch(e){ console.warn('Could not load thresholds:', e); }
+}
+
+function renderThresholdFields(){
+  const wrap=document.getElementById('threshold-fields');
+  if(!wrap) return;
+  wrap.innerHTML=VOL_LIST.map(v=>
+    '<div class="form-group"><label>'+v+' cans — warn at or below</label>'
+    +'<input type="number" min="0" id="thr-'+v+'" value="'+(lowStockThresholds[v]!=null?lowStockThresholds[v]:2)+'"></div>'
+  ).join('');
+}
+
+async function saveThresholds(){
+  const newThr={};
+  VOL_LIST.forEach(v=>{
+    const el=document.getElementById('thr-'+v);
+    const val=parseInt(el.value);
+    newThr[v]=isNaN(val)?2:val;
+  });
+  try{
+    await sbFetch('settings', {
+      method:'POST',
+      prefer:'resolution=merge-duplicates',
+      body:JSON.stringify({key:'low_stock_thresholds', value:newThr, updated_at:new Date().toISOString()})
+    });
+    lowStockThresholds={...DEFAULT_THRESHOLDS, ...newThr};
+    const msg=document.getElementById('threshold-success');
+    msg.textContent='Thresholds saved ✓'; setTimeout(()=>msg.textContent='',2500);
+    renderMgrDashboard();
+  } catch(e){
+    alert('Error saving thresholds: '+e.message);
+  }
+}
+
 function renderKpi(){
   const fromDate=document.getElementById('kpi-from')?document.getElementById('kpi-from').value:'';
   const toDate=document.getElementById('kpi-to')?document.getElementById('kpi-to').value:'';
@@ -1238,7 +1296,7 @@ function renderKpi(){
   const customers=new Set(sales.map(m=>m.person).filter(Boolean)).size;
   const revPerTx=sales.length>0?(totalRevenue/sales.length):0;
   document.getElementById('kpi-revenue').innerHTML=`<div class="metric-card"><div class="label">Total revenue</div><div class="value">€${totalRevenue.toFixed(0)}</div></div><div class="metric-card"><div class="label">Gross profit</div><div class="value">€${gp.toFixed(0)}</div></div><div class="metric-card"><div class="label">Gross margin</div><div class="value">${gm.toFixed(1)}%</div></div><div class="metric-card"><div class="label">Loss value</div><div class="value" style="color:var(--danger)">€${totalLossValue.toFixed(0)}</div></div><div class="metric-card"><div class="label">Revenue / sale</div><div class="value">€${revPerTx.toFixed(0)}</div></div>`;
-  const lowCount=state.products.filter(p=>getStock(p.id)<=2&&getStock(p.id)>=0&&!p.ignore_low_stock).length;
+  const lowCount=state.products.filter(p=>{const q=getStock(p.id);return q<=lowThreshold(p.volume)&&q>=0&&!p.ignore_low_stock;}).length;
   const totalStockUnits=state.products.reduce((s,p)=>s+Math.max(0,getStock(p.id)),0);
   document.getElementById('kpi-stock').innerHTML=`<div class="metric-card"><div class="label">Units in stock</div><div class="value">${totalStockUnits}</div></div><div class="metric-card"><div class="label">Units purchased</div><div class="value">${uIn}</div></div><div class="metric-card"><div class="label">Units sold</div><div class="value">${uSold}</div></div><div class="metric-card"><div class="label">Units lost</div><div class="value" style="color:var(--danger)">${uLost}</div></div><div class="metric-card"><div class="label">Sell-through</div><div class="value">${uIn>0?(uSold/uIn*100).toFixed(1):0}%</div></div><div class="metric-card"><div class="label">Low stock alerts</div><div class="value" style="color:var(--danger)">${lowCount}</div></div>`;
   document.getElementById('kpi-sales').innerHTML=`<div class="metric-card"><div class="label">Sale events</div><div class="value">${sales.length}</div></div><div class="metric-card"><div class="label">Unique customers</div><div class="value">${customers}</div></div><div class="metric-card"><div class="label">Avg qty / sale</div><div class="value">${sales.length>0?(uSold/sales.length).toFixed(1):'—'}</div></div>`;
