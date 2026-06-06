@@ -368,7 +368,6 @@ tr.row-low-stock td {
     <button class="tab" onclick="mgrTab('kpi',this)">KPIs</button>
     <button class="tab" onclick="mgrTab('movements',this)">Log movement</button>
     <button class="tab" onclick="mgrTab('purchase',this)">Log purchase</button>
-    <button class="tab" onclick="mgrTab('invoice',this)">Log invoice</button>
     <button class="tab" onclick="mgrTab('history',this)">All movements</button>
     <button class="tab" onclick="mgrTab('products',this)">Products</button>
   </div>
@@ -461,65 +460,35 @@ tr.row-low-stock td {
         <div class="form-group"><label>Invoice date</label><input type="date" id="mgr-date"></div>
         <div class="form-group"><label>Invoice / ref</label><input type="text" id="mgr-invoice" placeholder="e.g. INV-2024-001"></div>
       </div>
-      <div class="form-group" style="margin-bottom:12px;">
-        <label>Product</label>
-        <div class="prod-search-wrap"><input type="text" id="mgr-search" placeholder="Search by name or SKU…" oninput="filterProds('mgr')" onfocus="showDd('mgr')" autocomplete="off"><div class="prod-dropdown" id="mgr-dd" style="display:none;"></div></div>
-        <div class="selected-prod" id="mgr-sel">No product selected</div>
-      </div>
-      <div class="form-row three">
-        <div class="form-group"><label>Quantity (cans)</label><input type="number" id="mgr-qty" min="1" value="1"></div>
-        <div class="form-group"><label>Cost paid / can (€)</label><input type="number" id="mgr-cost" step="0.01" placeholder="0.00" oninput="updatePurchasePreview()"></div>
-        <div class="form-group"><label>Desired margin (%)</label><input type="number" id="mgr-margin" step="1" value="30" oninput="updatePurchasePreview()"></div>
-      </div>
-      <div id="mgr-price-preview" style="font-size:13px;color:var(--text2);margin-bottom:10px;padding:6px 10px;background:var(--bg2);border-radius:var(--radius);display:none;"></div>
-      <div class="checkbox-row">
-        <input type="checkbox" id="mgr-promo" onchange="updatePurchasePreview()">
-        <label for="mgr-promo">Promotional / free stock — use normal retail price, not this cost</label>
-      </div>
-      <div id="mgr-promo-note" style="font-size:12px;color:#3C3489;margin-bottom:10px;display:none;padding:6px 10px;background:#EEEDFE;border-radius:var(--radius);">Retail pricing will use the last non-promotional purchase price for this product.</div>
-      <button class="btn primary" onclick="logPurchase()" style="width:100%;margin-top:4px;justify-content:center;">Log purchase</button>
-      <div class="success-msg" id="mgr-success"></div>
-      <div class="error-msg" id="mgr-error"></div>
-    </div>
-  </div>
-
-  <!-- All movements -->
-  <div id="mgr-invoice" style="display:none;">
-    <div class="card">
-      <div class="section-title">Invoice details</div>
       <div class="form-row">
-        <div class="form-group"><label>Invoice date</label><input type="date" id="inv-date"></div>
-        <div class="form-group"><label>Invoice / ref</label><input type="text" id="inv-ref" placeholder="e.g. INV-2024-001"></div>
-      </div>
-      <div class="form-row">
-        <div class="form-group"><label>Shipping cost (€) <span style="font-weight:400;color:var(--text3);">(optional)</span></label><input type="number" id="inv-shipping" step="0.01" placeholder="0.00" oninput="recalcInvoice()"></div>
-        <div class="form-group"><label>Default margin (%)</label><input type="number" id="inv-margin" step="1" value="30" oninput="recalcInvoice()"></div>
+        <div class="form-group"><label>Shipping cost (€) <span style="font-weight:400;color:var(--text3);">(optional)</span></label><input type="number" id="mgr-shipping" step="0.01" placeholder="0.00" oninput="recalcInvoice()"></div>
+        <div class="form-group"><label>Desired margin (%)</label><input type="number" id="mgr-margin" step="1" value="30" oninput="recalcInvoice()"></div>
       </div>
     </div>
 
-    <div id="inv-lines-wrap">
-      <!-- lines added dynamically -->
-    </div>
+    <div id="inv-lines-wrap"></div>
 
-    <button class="btn" onclick="addInvoiceLine()" style="margin-bottom:1rem;width:100%;justify-content:center;"><i class="ti ti-plus"></i> Add product line</button>
+    <button class="btn" onclick="addInvoiceLine()" style="margin-bottom:1rem;width:100%;justify-content:center;"><i class="ti ti-plus"></i> Add product</button>
 
     <div id="inv-summary" style="display:none;" class="card">
-      <div class="section-title">Invoice summary</div>
-      <div style="font-size:13px;color:var(--text2);margin-bottom:10px;">
-        <span id="inv-summary-text"></span>
-      </div>
-      <table>
+      <div class="section-title">Summary</div>
+      <div style="font-size:13px;color:var(--text2);margin-bottom:10px;"><span id="inv-summary-text"></span></div>
+      <div style="overflow:auto;"><table>
         <thead><tr><th>Product</th><th>Vol</th><th>Qty</th><th>Base cost</th><th>Shipping/can</th><th>Landed cost</th><th>Retail price</th></tr></thead>
         <tbody id="inv-summary-body"></tbody>
-      </table>
+      </table></div>
     </div>
 
-    <div style="display:flex;gap:10px;margin-top:1rem;">
-      <button class="btn primary" onclick="confirmInvoice()" style="flex:1;justify-content:center;">Confirm &amp; save all lines</button>
-      <button class="btn" onclick="clearInvoice()" style="justify-content:center;">Clear invoice</button>
+    <div style="display:flex;gap:10px;">
+      <button class="btn primary" onclick="confirmInvoice()" style="flex:1;justify-content:center;">Log purchase</button>
+      <button class="btn" onclick="clearInvoice()" style="justify-content:center;">Clear</button>
     </div>
-    <div class="success-msg" id="inv-success"></div>
-    <div class="error-msg" id="inv-error"></div>
+    <div class="checkbox-row">
+      <input type="checkbox" id="mgr-promo">
+      <label for="mgr-promo">Promotional / free stock — record cost but keep retail price from last regular purchase</label>
+    </div>
+    <div class="success-msg" id="mgr-success"></div>
+    <div class="error-msg" id="mgr-error"></div>
   </div>
 
   <div id="mgr-history" style="display:none;">
@@ -736,10 +705,11 @@ function srTab(t,el){
 }
 
 function mgrTab(t,el){
-  ['dashboard','kpi','movements','purchase','invoice','history','products'].forEach(x=>document.getElementById('mgr-'+x).style.display=x===t?'':'none');
+  ['dashboard','kpi','movements','purchase','history','products'].forEach(x=>document.getElementById('mgr-'+x).style.display=x===t?'':'none');
   document.querySelectorAll('#screen-manager .tab').forEach(b=>b.classList.remove('active'));
   if(el)el.classList.add('active');
   if(t==='dashboard') renderMgrDashboard();
+  if(t==='purchase'){ initInvoiceDate(); if(!invoiceLines.length) addInvoiceLine(); }
   if(t==='kpi') renderKpi();
   if(t==='history') renderMgrHistory('');
   if(t==='products') renderProductList('');
@@ -1111,34 +1081,9 @@ async function logMgrMov(){
   } catch(e){ document.getElementById('mgr-mov-error').textContent='Error: '+e.message; }
 }
 
-async function logPurchase(){
-  const date=document.getElementById('mgr-date').value;
-  const product=selected.mgr;
-  const qty=parseInt(document.getElementById('mgr-qty').value);
-  const cost=parseFloat(document.getElementById('mgr-cost').value);
-  const margin=parseFloat(document.getElementById('mgr-margin').value);
-  const promo=document.getElementById('mgr-promo').checked;
-  if(!date||!product||!qty||isNaN(cost)){ alert('Please fill in date, product, quantity and cost.'); return; }
-  const data={type:'in',date,invoice:document.getElementById('mgr-invoice').value.trim()||null,supplier:'Pakelo',product_id:product.id,qty,cost_per_unit:cost,margin:isNaN(margin)?30:margin,promo:promo||false};
-  try{
-    const row=await sbInsert('movements',data);
-    state.movements.unshift(row);
-    selected.mgr=null; document.getElementById('mgr-search').value=''; document.getElementById('mgr-sel').textContent='No product selected';
-    document.getElementById('mgr-qty').value='1'; document.getElementById('mgr-cost').value=''; document.getElementById('mgr-invoice').value='';
-    document.getElementById('mgr-promo').checked=false; document.getElementById('mgr-price-preview').style.display='none'; document.getElementById('mgr-promo-note').style.display='none';
-    document.getElementById('mgr-success').textContent='Purchase logged ✓'; setTimeout(()=>document.getElementById('mgr-success').textContent='',2500);
-    renderMgrDashboard();
-  } catch(e){ document.getElementById('mgr-error').textContent='Error: '+e.message; }
-}
+async function logPurchase(){ return confirmInvoice(); }
 
-function updatePurchasePreview(){
-  const cost=parseFloat(document.getElementById('mgr-cost').value);
-  const margin=parseFloat(document.getElementById('mgr-margin').value);
-  const promo=document.getElementById('mgr-promo').checked;
-  const prev=document.getElementById('mgr-price-preview');
-  document.getElementById('mgr-promo-note').style.display=promo?'block':'none';
-  if(!isNaN(cost)&&!isNaN(margin)&&margin<100){ const retail=cost/(1-margin/100); prev.style.display='block'; prev.textContent=promo?`Actual cost: €${cost.toFixed(2)} — retail will use last regular price`:`Cost: €${cost.toFixed(2)} → Retail: €${retail.toFixed(2)} (${margin.toFixed(1)}% margin)`; } else { prev.style.display='none'; }
-}
+function updatePurchasePreview(){}
 
 // ── Edit movement modal ───────────────────────────────
 function openEditMovement(mid,context){
@@ -1385,8 +1330,8 @@ document.addEventListener('click', e=>{
 });
 
 function recalcInvoice(){
-  const shipping = parseFloat(document.getElementById('inv-shipping').value)||0;
-  const margin = parseFloat(document.getElementById('inv-margin').value)||30;
+  const shipping = parseFloat(document.getElementById('mgr-shipping').value)||0;
+  const margin = parseFloat(document.getElementById('mgr-margin').value)||30;
   const readyLines = invoiceLines.filter(l=>l.product&&l.qty&&l.cost!=='');
 
   if(!readyLines.length){
@@ -1432,10 +1377,11 @@ function recalcInvoice(){
 }
 
 async function confirmInvoice(){
-  const date = document.getElementById('inv-date').value;
-  const ref = document.getElementById('inv-ref').value.trim();
-  const shipping = parseFloat(document.getElementById('inv-shipping').value)||0;
-  const margin = parseFloat(document.getElementById('inv-margin').value)||30;
+  const date = document.getElementById('mgr-date').value;
+  const ref = document.getElementById('mgr-invoice').value.trim();
+  const shipping = parseFloat(document.getElementById('mgr-shipping').value)||0;
+  const margin = parseFloat(document.getElementById('mgr-margin').value)||30;
+  const promo = document.getElementById('mgr-promo').checked;
 
   if(!date){ alert('Please enter an invoice date.'); return; }
 
@@ -1453,8 +1399,8 @@ async function confirmInvoice(){
   readyLines.forEach(l=>{ totalLitres += volToLitres(l.product.volume) * l.qty; });
   const shippingPerLitre = totalLitres > 0 ? shipping / totalLitres : 0;
 
-  const errEl = document.getElementById('inv-error');
-  const sucEl = document.getElementById('inv-success');
+  const errEl = document.getElementById('mgr-error');
+  const sucEl = document.getElementById('mgr-success');
   errEl.textContent='';
   sucEl.textContent='Saving…';
 
@@ -1467,7 +1413,7 @@ async function confirmInvoice(){
         type:'in', date, invoice:ref||null, supplier:'Pakelo',
         product_id:l.product.id, qty:l.qty,
         cost_per_unit:+landedCost.toFixed(4),
-        margin:+margin.toFixed(2), promo:false
+        margin:+margin.toFixed(2), promo:promo||false
       };
       const row = await sbInsert('movements', data);
       state.movements.unshift(row);
@@ -1485,15 +1431,16 @@ async function confirmInvoice(){
 function clearInvoice(){
   invoiceLines=[];
   renderInvoiceLines();
-  document.getElementById('inv-shipping').value='';
-  document.getElementById('inv-ref').value='';
-  document.getElementById('inv-margin').value='30';
+  document.getElementById('mgr-shipping').value='';
+  document.getElementById('mgr-invoice').value='';
+  document.getElementById('mgr-margin').value='30';
+  const promoEl=document.getElementById('mgr-promo'); if(promoEl) promoEl.checked=false;
   document.getElementById('inv-summary').style.display='none';
 }
 
 // Init invoice date on load
 function initInvoiceDate(){
-  const el=document.getElementById('inv-date');
+  const el=document.getElementById('mgr-date');
   if(el&&!el.value) el.value=today();
 }
 
