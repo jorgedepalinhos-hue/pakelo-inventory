@@ -678,10 +678,10 @@ function pinKey(k){
       if(pinBuffer===MANAGER_PIN){
         document.getElementById('pin-error').textContent='';
         selected.mgr=null; selected['mgr-mov']=null;
-        ['mgr-search','mgr-mov-search'].forEach(id=>document.getElementById(id).value='');
-        ['mgr-sel','mgr-mov-sel'].forEach(id=>document.getElementById(id).textContent='No product selected');
-        document.getElementById('mgr-date').value=today();
-        document.getElementById('mgr-mov-date').value=today();
+        const movSearch=document.getElementById('mgr-mov-search'); if(movSearch) movSearch.value='';
+        const movSel=document.getElementById('mgr-mov-sel'); if(movSel) movSel.textContent='No product selected';
+        const mgrDate=document.getElementById('mgr-date'); if(mgrDate) mgrDate.value=today();
+        const movDate=document.getElementById('mgr-mov-date'); if(movDate) movDate.value=today();
         setMgrType('sale');
         renderMgrDashboard();
         show('screen-manager');
