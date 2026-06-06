@@ -314,7 +314,7 @@ tr.row-low-stock td {
     <div class="card">
       <div class="section-title">Movement type</div>
       <div class="type-toggle">
-        <button class="type-btn t-out" id="sr-t-out" onclick="setSrType('out')"><i class="ti ti-arrow-up-right"></i> Removal</button>
+        <button class="type-btn t-sale" id="sr-t-sale" onclick="setSrType('sale')"><i class="ti ti-receipt"></i> Sale</button>
         <button class="type-btn" id="sr-t-in" onclick="setSrType('in')" style="opacity:.5;font-size:11px;"><i class="ti ti-arrow-down-left"></i> Stock in (correction)</button>
       </div>
       <div class="form-row">
@@ -547,6 +547,7 @@ tr.row-low-stock td {
 <!-- ══ MODALS ═════════════════════════════════════════════ -->
 <div id="edit-prod-modal" class="modal-hidden"></div>
 <div id="edit-mov-modal" class="modal-hidden"></div>
+<div id="sr-sale-modal" class="modal-hidden"></div>
 
 <!-- ══ SCRIPTS ═══════════════════════════════════════════ -->
 <script src="https://cdnjs.cloudflare.com/ajax/libs/Chart.js/4.4.1/chart.umd.js"></script>
@@ -665,7 +666,7 @@ function goStockroom(){
   document.getElementById('sr-search').value='';
   document.getElementById('sr-sel').textContent='No product selected';
   document.getElementById('sr-date').value=today();
-  setSrType('out');
+  setSrType('sale');
   show('screen-stockroom');
   srTab('log',document.getElementById('sr-tab-log'));
 }
@@ -717,14 +718,17 @@ function mgrTab(t,el){
 
 function setSrType(type){
   srType=type;
-  ['out','in'].forEach(t=>{
+  ['sale','in'].forEach(t=>{
     const b=document.getElementById('sr-t-'+t);
+    if(!b) return;
     b.className='type-btn'+(t===type?' t-'+t:'');
     b.style.opacity=t===type?'1':'0.5';
     b.style.fontSize=t==='in'&&type!=='in'?'11px':'';
   });
-  document.getElementById('sr-person-lbl').textContent=type==='out'?'Customer / person':'Reason / note';
-  document.getElementById('sr-person').placeholder=type==='out'?'e.g. João Silva':'e.g. Stock correction';
+  const lbl=document.getElementById('sr-person-lbl');
+  const inp=document.getElementById('sr-person');
+  if(type==='sale'){ lbl.textContent='Customer'; inp.placeholder='e.g. João Silva'; }
+  else { lbl.textContent='Reason / note'; inp.placeholder='e.g. Stock correction'; }
 }
 
 function setMgrType(type){
@@ -865,7 +869,7 @@ function renderSrHistory(filter){
   const sorted=[...state.movements].sort((a,b)=>b.date.localeCompare(a.date));
   const filtered=sorted.filter(m=>{ const p=state.products.find(x=>x.id===m.product_id); return !f||(p&&p.name.toLowerCase().includes(f))||(m.person&&m.person.toLowerCase().includes(f))||(m.submitter&&m.submitter.toLowerCase().includes(f)); });
   if(!filtered.length){ tbody.innerHTML='<tr><td colspan="9" class="empty-state">No movements yet</td></tr>'; return; }
-  tbody.innerHTML=filtered.map(m=>{ const p=state.products.find(x=>x.id===m.product_id); const tag=m.type==='in'?'<span class="tag in">In</span>':'<span class="tag out">Out</span>'; return `<tr id="srow-${m.id}"><td>${m.date}</td><td>${tag}</td><td>${p?catDot(p.category)+p.name:'—'}</td><td>${p?volPill(p.volume):'—'}</td><td>${m.qty}</td><td>${dash(m.person)}</td><td>${dash(m.submitter)}</td><td>${noteCell(m.notes)}</td><td><div class="action-btns"><button class="btn ghost" onclick="openEditMovement('${m.id}','sr')"><i class="ti ti-edit"></i></button><button class="btn danger" onclick="deleteMovement('${m.id}','sr')"><i class="ti ti-trash"></i></button></div></td></tr>`; }).join('');
+  tbody.innerHTML=filtered.map(m=>{ const p=state.products.find(x=>x.id===m.product_id); const tagMapSr={in:'<span class="tag in">In</span>',sale:'<span class="tag sale">Sale</span>',loss:'<span class="tag loss">Loss</span>',out:'<span class="tag out">Removal</span>'}; const tag=tagMapSr[m.type]||'<span class="tag out">Out</span>'; return `<tr id="srow-${m.id}"><td>${m.date}</td><td>${tag}</td><td>${p?catDot(p.category)+p.name:'—'}</td><td>${p?volPill(p.volume):'—'}</td><td>${m.qty}</td><td>${dash(m.person)}</td><td>${dash(m.submitter)}</td><td>${noteCell(m.notes)}</td><td><div class="action-btns"><button class="btn ghost" onclick="openEditMovement('${m.id}','sr')"><i class="ti ti-edit"></i></button><button class="btn danger" onclick="deleteMovement('${m.id}','sr')"><i class="ti ti-trash"></i></button></div></td></tr>`; }).join('');
 }
 
 // ── Render: manager dashboard ─────────────────────────
@@ -1027,21 +1031,89 @@ async function deleteProd(id){
 }
 
 // ── CRUD: movements ───────────────────────────────────
+
+function openSrSaleModal(product, qty, date, person){
+  const last=getLastRetailPurchase(product.id);
+  const retail=last?calcRetail(last):null;
+  const suggested=retail!=null?retail.toFixed(2):'';
+  const modal=document.getElementById('sr-sale-modal');
+  modal.className='modal-bg';
+  modal.innerHTML='<div class="modal-box">'
+    +'<h3>Confirm sale price</h3>'
+    +'<div style="font-size:14px;margin-bottom:4px;">'+catDot(product.category)+product.name+' <span class="vol-pill">'+product.volume+'</span></div>'
+    +'<div style="font-size:13px;color:var(--text2);margin-bottom:14px;">'+qty+' can'+(qty>1?'s':'')+' · Customer: '+(person||'—')+'</div>'
+    +'<div class="form-group" style="margin-bottom:6px;">'
+    +'<label>Sale price per can (€)</label>'
+    +'<input type="number" id="sr-sale-price" step="0.01" value="'+suggested+'" style="font-size:16px;">'
+    +'<div class="sale-price-hint" style="color:'+(retail!=null?'var(--success)':'var(--text2)')+';">'+(retail!=null?'Suggested retail price — change only if needed':'No retail price on record — please enter the price')+'</div>'
+    +'</div>'
+    +'<div style="font-size:13px;color:var(--text2);margin:10px 0;">Total: <strong id="sr-sale-total">'+(suggested?'€'+(parseFloat(suggested)*qty).toFixed(2):'—')+'</strong></div>'
+    +'<div style="display:flex;gap:8px;margin-top:14px;">'
+    +'<button class="btn primary" style="flex:1;justify-content:center;" onclick="confirmSrSale()">Confirm sale</button>'
+    +'<button class="btn" onclick="closeModal(\'sr-sale-modal\')">Cancel</button>'
+    +'</div></div>';
+  // store pending sale context
+  window._pendingSrSale={product, qty, date, person};
+  // live total update
+  const priceInp=document.getElementById('sr-sale-price');
+  priceInp.addEventListener('input',()=>{
+    const v=parseFloat(priceInp.value);
+    document.getElementById('sr-sale-total').textContent=!isNaN(v)?'€'+(v*qty).toFixed(2):'—';
+  });
+  setTimeout(()=>priceInp.focus(),50);
+}
+
+async function confirmSrSale(){
+  const ctx=window._pendingSrSale;
+  if(!ctx) return;
+  const priceVal=parseFloat(document.getElementById('sr-sale-price').value);
+  const data={
+    type:'sale', date:ctx.date, person:ctx.person, product_id:ctx.product.id, qty:ctx.qty,
+    sale_price:!isNaN(priceVal)?priceVal:null,
+    submitter:document.getElementById('sr-submitter').value.trim()||null,
+    notes:document.getElementById('sr-notes').value.trim()||null
+  };
+  try{
+    const row=await sbInsert('movements',data);
+    state.movements.unshift(row);
+    closeModal('sr-sale-modal');
+    window._pendingSrSale=null;
+    // reset form
+    document.getElementById('sr-person').value='';
+    document.getElementById('sr-qty').value='1';
+    document.getElementById('sr-submitter').value='';
+    document.getElementById('sr-notes').value='';
+    selected.sr=null;
+    document.getElementById('sr-search').value='';
+    document.getElementById('sr-sel').textContent='No product selected';
+    const msg=document.getElementById('sr-success');
+    msg.textContent='Sale logged ✓'; setTimeout(()=>msg.textContent='',2500);
+  } catch(e){
+    document.getElementById('sr-error').textContent='Error: '+e.message;
+  }
+}
+
 async function logSr(){
   const date=document.getElementById('sr-date').value;
   const person=document.getElementById('sr-person').value.trim();
   const product=selected.sr;
   const qty=parseInt(document.getElementById('sr-qty').value);
   if(!date||!person||!product||!qty){ alert('Please fill in date, customer/person, product and quantity.'); return; }
+  // Stock warning
   if(srType!=='in'){
     const currentStock=getStock(product.id);
     if(currentStock<=0){
-      const go=confirm('⚠️ '+product.name+' ('+product.volume+') has no stock (current: '+currentStock+'). Log this removal anyway?');
+      const go=confirm('⚠️ '+product.name+' ('+product.volume+') has no stock (current: '+currentStock+'). Log this sale anyway?');
       if(!go) return;
     } else if(qty>currentStock){
-      const go=confirm('⚠️ You are removing '+qty+' units but only '+currentStock+' are in stock for '+product.name+' ('+product.volume+'). This will result in negative stock. Continue anyway?');
+      const go=confirm('⚠️ You are selling '+qty+' units but only '+currentStock+' are in stock for '+product.name+' ('+product.volume+'). This will result in negative stock. Continue anyway?');
       if(!go) return;
     }
+  }
+  // For sales, show price confirmation popup
+  if(srType==='sale'){
+    openSrSaleModal(product, qty, date, person);
+    return;
   }
   const data={type:srType,date,person,product_id:product.id,qty,submitter:document.getElementById('sr-submitter').value.trim()||null,notes:document.getElementById('sr-notes').value.trim()||null};
   try{
