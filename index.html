@@ -340,7 +340,13 @@ tr.row-low-stock td {
 
   <div id="sr-stock" style="display:none;">
     <div class="cat-legend" id="sr-cat-legend"></div>
-    <input class="search-filter" type="text" placeholder="Filter products…" oninput="renderSrStock(this.value)">
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap;">
+      <input class="search-filter" type="text" id="sr-stock-filter" placeholder="Filter products…" oninput="renderSrStock(this.value)" style="margin-bottom:0;flex:1;min-width:180px;">
+      <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text);white-space:nowrap;user-select:none;" onclick="toggleSrLowOnly()">
+        <span id="sr-low-only-switch" style="display:inline-block;width:36px;height:20px;border-radius:99px;background:rgba(128,128,128,0.3);position:relative;flex-shrink:0;transition:background .2s;"><span id="sr-low-only-knob" style="position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .2s;"></span></span>
+        Show only low stock
+      </label>
+    </div>
     <div id="sr-stock-wrapper"><table><thead><tr></tr></thead><tbody id="sr-stock-body"></tbody></table></div>
   </div>
 
@@ -376,7 +382,13 @@ tr.row-low-stock td {
   <div id="mgr-dashboard">
     <div class="metrics-grid" id="mgr-metrics"></div>
     <div class="cat-legend" id="mgr-dash-legend"></div>
-    <input class="search-filter" type="text" placeholder="Filter products…" oninput="renderMgrStock(this.value)">
+    <div style="display:flex;gap:10px;align-items:center;margin-bottom:12px;flex-wrap:wrap;">
+      <input class="search-filter" type="text" id="mgr-stock-filter" placeholder="Filter products…" oninput="renderMgrStock(this.value)" style="margin-bottom:0;flex:1;min-width:180px;">
+      <label style="display:inline-flex;align-items:center;gap:8px;cursor:pointer;font-size:13px;color:var(--text);white-space:nowrap;user-select:none;" onclick="toggleLowOnly()">
+        <span id="low-only-switch" style="display:inline-block;width:36px;height:20px;border-radius:99px;background:rgba(128,128,128,0.3);position:relative;flex-shrink:0;transition:background .2s;"><span id="low-only-knob" style="position:absolute;top:2px;left:2px;width:16px;height:16px;border-radius:50%;background:#fff;transition:left .2s;"></span></span>
+        Show only low stock
+      </label>
+    </div>
     <div id="mgr-stock-grouped"></div>
   </div>
 
@@ -590,6 +602,7 @@ let pinBuffer='';
 let charts={};
 let supabaseOk = false;
 let currentSrHistFilter='', currentMgrHistFilter='';
+let showLowOnly=false, showSrLowOnly=false;
 
 // ── Supabase helpers ──────────────────────────────────
 const isConfigured = () => true;
@@ -823,6 +836,17 @@ document.addEventListener('click',e=>{
 
 // ── Render: stockroom stock ───────────────────────────
 
+
+function toggleSrLowOnly(){
+  showSrLowOnly=!showSrLowOnly;
+  const sw=document.getElementById('sr-low-only-switch');
+  const knob=document.getElementById('sr-low-only-knob');
+  if(sw){ sw.style.background=showSrLowOnly?'var(--brand)':'rgba(128,128,128,0.3)'; }
+  if(knob){ knob.style.left=showSrLowOnly?'18px':'2px'; }
+  const filterEl=document.getElementById('sr-stock-filter');
+  renderSrStock(filterEl?filterEl.value:'');
+}
+
 function toggleSrDetail(pid){
   const row=document.getElementById('sr-detail-'+pid);
   if(row) row.style.display=row.style.display==='none'?'':'none';
@@ -831,9 +855,11 @@ function toggleSrDetail(pid){
 function renderSrStock(filter){
   const f=(filter||'').toLowerCase();
   const container=document.getElementById('sr-stock-body').closest('.card')||document.getElementById('sr-stock-body').parentNode;
-  const allProds=state.products.filter(p=>!f||p.name.toLowerCase().includes(f)||(p.sku&&p.sku.toLowerCase().includes(f)));
+  let allProds=state.products.filter(p=>!f||p.name.toLowerCase().includes(f)||(p.sku&&p.sku.toLowerCase().includes(f)));
+  if(showSrLowOnly){ allProds=allProds.filter(p=>isProductLow(p)); }
   if(!allProds.length){
-    document.getElementById('sr-stock-body').innerHTML='<tr><td colspan="4" class="empty-state">No products found</td></tr>';
+    document.getElementById('sr-stock-body').innerHTML='<tr><td colspan="5" class="empty-state">'+(showSrLowOnly?'No low stock products 🎉':'No products found')+'</td></tr>';
+    const w=document.getElementById('sr-stock-wrapper'); if(w) w.innerHTML='<div class="empty-state">'+(showSrLowOnly?'No low stock products 🎉':'No products found')+'</div>';
     return;
   }
   // Replace entire table section with grouped layout
@@ -897,11 +923,23 @@ function renderMgrDashboard(){
   renderMgrStock('');
 }
 
+
+function toggleLowOnly(){
+  showLowOnly=!showLowOnly;
+  const sw=document.getElementById('low-only-switch');
+  const knob=document.getElementById('low-only-knob');
+  if(sw){ sw.style.background=showLowOnly?'var(--brand)':'rgba(128,128,128,0.3)'; }
+  if(knob){ knob.style.left=showLowOnly?'18px':'2px'; }
+  const filterEl=document.getElementById('mgr-stock-filter');
+  renderMgrStock(filterEl?filterEl.value:'');
+}
+
 function renderMgrStock(filter){
   const f=(filter||'').toLowerCase();
   const container=document.getElementById('mgr-stock-grouped');
-  const prods=state.products.filter(p=>!f||p.name.toLowerCase().includes(f)||(p.sku&&p.sku.toLowerCase().includes(f)));
-  if(!prods.length){ container.innerHTML='<div class="empty-state">No products found</div>'; return; }
+  let prods=state.products.filter(p=>!f||p.name.toLowerCase().includes(f)||(p.sku&&p.sku.toLowerCase().includes(f)));
+  if(showLowOnly){ prods=prods.filter(p=>isProductLow(p)); }
+  if(!prods.length){ container.innerHTML='<div class="empty-state">'+(showLowOnly?'No low stock products 🎉':'No products found')+'</div>'; return; }
   let html='';
   CAT_ORDER.forEach(cat=>{
     const group=prods.filter(p=>(p.category||'')===(cat||'')); if(!group.length)return;
