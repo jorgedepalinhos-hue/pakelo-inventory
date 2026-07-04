@@ -983,8 +983,9 @@ function showDetails(pid){
   const existing=document.getElementById(panelId); if(existing){ existing.remove(); return; }
   const panel=document.createElement('tr'); panel.id=panelId;
   panel.innerHTML=`<td colspan="8" style="padding:0;"><div style="background:var(--bg2);padding:10px 14px;font-size:13px;">${p.spec?`<div style="margin-bottom:4px;"><span style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text2);">Specs</span><br>${esc(p.spec)}</div>`:''}${p.notes?`<div><span style="font-size:11px;text-transform:uppercase;letter-spacing:.05em;color:var(--text2);">Notes</span><br>${esc(p.notes)}</div>`:''}${!p.spec&&!p.notes?'<span style="color:var(--text2);">No details entered</span>':''}</div></td>`;
-  const rows=document.querySelectorAll('#mgr-stock-grouped tr');
-  for(const row of rows){ if(row.innerHTML.includes(`showDetails('${pid}'`)){ row.parentNode.insertBefore(panel,row.nextSibling); break; } }
+  // Find the button that was clicked via its data-pid, then insert after its row
+  const btn=document.querySelector('#mgr-stock-grouped button[data-pid="'+pid+'"]');
+  if(btn){ const row=btn.closest('tr'); if(row){ row.parentNode.insertBefore(panel,row.nextSibling); } }
 }
 
 // ── Render: manager history ───────────────────────────
