@@ -516,7 +516,7 @@ tr.row-low-stock td {
         </div>
         <div class="form-group" style="flex:2;min-width:160px;">
           <label>Search</label>
-          <input type="text" id="hist-search" placeholder="Filter by product, person, type…" oninput="renderMgrHistory(this.value)">
+          <input type="text" id="hist-search" placeholder="Filter by product, person, type, notes, invoice…" oninput="renderMgrHistory(this.value)">
         </div>
         <button class="btn" onclick="clearHistoryFilters()" style="margin-bottom:1px;">Clear</button>
       </div>
@@ -998,7 +998,7 @@ function renderMgrHistory(filter){
   const sorted=[...state.movements].sort((a,b)=>b.date.localeCompare(a.date));
   const filtered=sorted.filter(m=>{
     const p=state.products.find(x=>x.id===m.product_id);
-    const textMatch=!f||(p&&p.name.toLowerCase().includes(f))||(m.person&&m.person.toLowerCase().includes(f))||(m.submitter&&m.submitter.toLowerCase().includes(f))||m.type.includes(f);
+    const textMatch=!f||(p&&p.name.toLowerCase().includes(f))||(m.person&&m.person.toLowerCase().includes(f))||(m.submitter&&m.submitter.toLowerCase().includes(f))||(m.notes&&m.notes.toLowerCase().includes(f))||(m.invoice&&m.invoice.toLowerCase().includes(f))||m.type.includes(f);
     const fromMatch=!fromDate||m.date>=fromDate;
     const toMatch=!toDate||m.date<=toDate;
     return textMatch&&fromMatch&&toMatch;
