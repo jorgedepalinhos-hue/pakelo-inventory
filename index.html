@@ -507,11 +507,11 @@ tr.row-low-stock td {
     <div class="card" style="padding:.875rem 1.25rem;margin-bottom:.75rem;">
       <div style="display:flex;flex-wrap:wrap;gap:10px;align-items:flex-end;">
         <div class="form-group" style="flex:1;min-width:120px;">
-          <label>From date</label>
+          <label>From date <span id="hist-from-hint" style="font-weight:400;color:var(--text3);"></span></label>
           <input type="date" id="hist-from" onchange="renderMgrHistory(document.getElementById('hist-search').value)">
         </div>
         <div class="form-group" style="flex:1;min-width:120px;">
-          <label>To date</label>
+          <label>To date <span id="hist-to-hint" style="font-weight:400;color:var(--text3);"></span></label>
           <input type="date" id="hist-to" onchange="renderMgrHistory(document.getElementById('hist-search').value)">
         </div>
         <div class="form-group" style="flex:2;min-width:160px;">
@@ -994,6 +994,21 @@ function renderMgrHistory(filter){
   const f=currentMgrHistFilter.toLowerCase();
   const fromDate=document.getElementById('hist-from')?document.getElementById('hist-from').value:'';
   const toDate=document.getElementById('hist-to')?document.getElementById('hist-to').value:'';
+  // Show the real data date range as placeholder hints
+  if(state.movements.length){
+    const allDates=state.movements.map(m=>m.date).sort();
+    const earliest=allDates[0], latest=allDates[allDates.length-1];
+    const fromHint=document.getElementById('hist-from-hint');
+    const toHint=document.getElementById('hist-to-hint');
+    if(fromHint&&!fromDate) fromHint.textContent='(earliest: '+earliest+')';
+    else if(fromHint) fromHint.textContent='';
+    if(toHint&&!toDate) toHint.textContent='(latest: '+latest+')';
+    else if(toHint) toHint.textContent='';
+    // Set min/max bounds on the date pickers
+    const fromInp=document.getElementById('hist-from'), toInp=document.getElementById('hist-to');
+    if(fromInp){ fromInp.min=earliest; fromInp.max=latest; }
+    if(toInp){ toInp.min=earliest; toInp.max=latest; }
+  }
   const tbody=document.getElementById('mgr-hist-body');
   const sorted=[...state.movements].sort((a,b)=>b.date.localeCompare(a.date));
   const filtered=sorted.filter(m=>{
