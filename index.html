@@ -186,12 +186,12 @@ tr:last-child td{border-bottom:none;}
   #mgr-stock-grouped td:nth-child(8){display:none;}
 
   /* History tables — hide less critical cols */
-  #mgr-hist-body td:nth-child(10),
   #mgr-hist-body td:nth-child(11),
   #mgr-hist-body td:nth-child(12),
-  #mgr-hist-body th:nth-child(10),
+  #mgr-hist-body td:nth-child(13),
   #mgr-hist-body th:nth-child(11),
-  #mgr-hist-body th:nth-child(12){display:none;}
+  #mgr-hist-body th:nth-child(12),
+  #mgr-hist-body th:nth-child(13){display:none;}
 
   #sr-hist-body td:nth-child(7),
   #sr-hist-body td:nth-child(8),
@@ -523,7 +523,7 @@ tr.row-low-stock td {
       <div id="hist-summary" style="margin-top:10px;display:none;padding-top:10px;border-top:0.5px solid var(--border);display:flex;flex-wrap:wrap;gap:16px;font-size:13px;"></div>
     </div>
     <div class="card" style="padding:0;overflow:auto;">
-      <table><thead><tr><th>Date</th><th>Type</th><th>Product</th><th>Vol</th><th>Qty</th><th>Customer</th><th>Sale price</th><th>Cost/unit</th><th>Retail</th><th>Submitted by</th><th>Notes</th><th>Invoice</th><th></th></tr></thead>
+      <table><thead><tr><th>Date</th><th>Type</th><th>Product</th><th>Vol</th><th>Qty</th><th>Customer</th><th>Sale price</th><th>Total</th><th>Cost/unit</th><th>Retail</th><th>Submitted by</th><th>Notes</th><th>Invoice</th><th></th></tr></thead>
       <tbody id="mgr-hist-body"></tbody></table>
     </div>
   </div>
@@ -1043,7 +1043,7 @@ function renderMgrHistory(filter){
   }
   if(!filtered.length){ tbody.innerHTML='<tr><td colspan="13" class="empty-state">No movements yet</td></tr>'; return; }
   const tagMap={in:'<span class="tag in">Purchase</span>',out:'<span class="tag out">Removal</span>',sale:'<span class="tag sale">Sale</span>',loss:'<span class="tag loss">Loss</span>'};
-  tbody.innerHTML=filtered.map(m=>{ const p=state.products.find(x=>x.id===m.product_id); const retail=m.type==='in'&&m.margin!=null?(m.cost_per_unit/(1-m.margin/100)):null; return `<tr id="mrow-${m.id}"><td>${m.date}</td><td>${tagMap[m.type]||'<span class="tag out">Out</span>'}${m.promo?'<span class="promo-badge">promo</span>':''}</td><td>${p?catDot(p.category)+p.name:'—'}</td><td>${p?volPill(p.volume):'—'}</td><td>${m.qty}</td><td>${dash(m.person)}</td><td>${m.sale_price!=null?'€'+Number(m.sale_price).toFixed(2):dash(null)}</td><td>${m.cost_per_unit!=null?'€'+Number(m.cost_per_unit).toFixed(2):dash(null)}</td><td>${retail?'€'+retail.toFixed(2):dash(null)}</td><td>${dash(m.submitter)}</td><td>${noteCell(m.notes)}</td><td style="font-size:12px;color:var(--text2);">${m.invoice||'—'}</td><td><div class="action-btns"><button class="btn ghost" onclick="openEditMovement('${m.id}','mgr')"><i class="ti ti-edit"></i></button><button class="btn danger" onclick="deleteMovement('${m.id}','mgr')"><i class="ti ti-trash"></i></button></div></td></tr>`; }).join('');
+  tbody.innerHTML=filtered.map(m=>{ const p=state.products.find(x=>x.id===m.product_id); const retail=m.type==='in'&&m.margin!=null?(m.cost_per_unit/(1-m.margin/100)):null; return `<tr id="mrow-${m.id}"><td>${m.date}</td><td>${tagMap[m.type]||'<span class="tag out">Out</span>'}${m.promo?'<span class="promo-badge">promo</span>':''}</td><td>${p?catDot(p.category)+p.name:'—'}</td><td>${p?volPill(p.volume):'—'}</td><td>${m.qty}</td><td>${dash(m.person)}</td><td>${m.sale_price!=null?'€'+Number(m.sale_price).toFixed(2):dash(null)}</td><td>${m.sale_price!=null?'<strong>€'+(Number(m.sale_price)*m.qty).toFixed(2)+'</strong>':dash(null)}</td><td>${m.cost_per_unit!=null?'€'+Number(m.cost_per_unit).toFixed(2):dash(null)}</td><td>${retail?'€'+retail.toFixed(2):dash(null)}</td><td>${dash(m.submitter)}</td><td>${noteCell(m.notes)}</td><td style="font-size:12px;color:var(--text2);">${m.invoice||'—'}</td><td><div class="action-btns"><button class="btn ghost" onclick="openEditMovement('${m.id}','mgr')"><i class="ti ti-edit"></i></button><button class="btn danger" onclick="deleteMovement('${m.id}','mgr')"><i class="ti ti-trash"></i></button></div></td></tr>`; }).join('');
 }
 
 // ── Render: products ──────────────────────────────────
