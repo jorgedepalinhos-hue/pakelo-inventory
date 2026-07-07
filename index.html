@@ -1346,13 +1346,16 @@ function renderKpi(){
   if(charts.cat)charts.cat.destroy();
   charts.cat=new Chart(document.getElementById('chart-cat'),{type:'bar',data:{labels:catKeys,datasets:[{label:'Units sold',data:catKeys.map(k=>catSales[k]),backgroundColor:catColors,borderWidth:0}]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:false}},scales:{y:{beginAtZero:true,ticks:{precision:0}}}}});
   const monthMap={}; state.movements.forEach(m=>{ const mo=m.date.slice(0,7); if(!monthMap[mo])monthMap[mo]={in:0,sale:0,other:0}; if(m.type==='in')monthMap[mo].in+=m.qty; else if(m.type==='sale')monthMap[mo].sale+=m.qty; else monthMap[mo].other+=m.qty; });
-  const months=Object.keys(monthMap).sort();
+  let months=Object.keys(monthMap).sort();
+  // Show only the most recent 12 months
+  if(months.length>12) months=months.slice(months.length-12);
   if(charts.monthly)charts.monthly.destroy();
-  charts.monthly=new Chart(document.getElementById('chart-monthly'),{type:'line',data:{labels:months,datasets:[
-    {label:'Purchases in',data:months.map(m=>monthMap[m].in),borderColor:'#639922',backgroundColor:'#639922',fill:false,tension:.3,pointRadius:4},
-    {label:'Sales',data:months.map(m=>monthMap[m].sale),borderColor:'#378ADD',backgroundColor:'#378ADD',fill:false,tension:.3,pointRadius:4},
-    {label:'Losses / removals',data:months.map(m=>monthMap[m].other),borderColor:'#E24B4A',backgroundColor:'#E24B4A',fill:false,tension:.3,pointRadius:4,borderDash:[4,3]}
-  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:'bottom',labels:{boxWidth:12,font:{size:11}}}},scales:{y:{beginAtZero:true,ticks:{precision:0}},x:{ticks:{autoSkip:true,maxRotation:45}}}}});
+  const barValuePlugin={id:'barValueLabels',afterDatasetsDraw(chart){const{ctx}=chart;ctx.save();ctx.font='600 10px -apple-system,sans-serif';ctx.textAlign='center';ctx.textBaseline='bottom';chart.data.datasets.forEach((ds,di)=>{const meta=chart.getDatasetMeta(di);meta.data.forEach((bar,i)=>{const val=ds.data[i];if(val>0){ctx.fillStyle=ds.backgroundColor;ctx.fillText(val,bar.x,bar.y-2);}});});ctx.restore();}};
+  charts.monthly=new Chart(document.getElementById('chart-monthly'),{type:'bar',plugins:[barValuePlugin],data:{labels:months,datasets:[
+    {label:'Purchases in',data:months.map(m=>monthMap[m].in),backgroundColor:'#639922',borderRadius:3},
+    {label:'Sales',data:months.map(m=>monthMap[m].sale),backgroundColor:'#378ADD',borderRadius:3},
+    {label:'Losses / removals',data:months.map(m=>monthMap[m].other),backgroundColor:'#E24B4A',borderRadius:3}
+  ]},options:{responsive:true,maintainAspectRatio:false,plugins:{legend:{display:true,position:'bottom',labels:{boxWidth:12,font:{size:11}}},datalabels:{display:false}},scales:{y:{beginAtZero:true,ticks:{precision:0}},x:{ticks:{autoSkip:false,maxRotation:45}}}}});
   const prodStats={}; state.products.forEach(p=>prodStats[p.id]={units:0,revenue:0,losses:0});
   state.movements.forEach(m=>{ if(!prodStats[m.product_id])return; if(m.type==='sale'){prodStats[m.product_id].units+=m.qty;const last=getLastRetailPurchase(m.product_id);const retail=m.sale_price!=null?m.sale_price:(last?calcRetail(last):0);prodStats[m.product_id].revenue+=retail*m.qty;} if(m.type==='loss')prodStats[m.product_id].losses+=m.qty; });
   const top=[...state.products].filter(p=>prodStats[p.id].units>0).sort((a,b)=>prodStats[b.id].units-prodStats[a.id].units).slice(0,10);
