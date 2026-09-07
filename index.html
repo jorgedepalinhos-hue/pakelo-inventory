@@ -16,6 +16,7 @@
   --success:#2d6a2d;--danger:#a32d2d;--info:#185fa5;--warning:#854f0b;
   --bg-success:#eaf3de;--bg-danger:#fcebeb;--bg-info:#e6f1fb;--bg-warning:#faeeda;
   --radius:8px;--radius-lg:12px;
+  --batch-0:#eef4fb;--batch-1:#f6eefb;--batch-2:#eefbf2;--batch-3:#fbf6ee;--batch-4:#fbeef1;--batch-5:#eefbfa;--batch-6:#f5fbee;
 }
 @media(prefers-color-scheme:dark){
   :root{
@@ -23,6 +24,7 @@
     --text:#f0f0ee;--text2:#a0908f;--text3:#707070;
     --border:rgba(255,255,255,0.12);--border2:rgba(255,255,255,0.22);
     --brand:#e03030;--brand-dark:#cc2222;--brand-light:#3a1515;
+    --batch-0:#16202b;--batch-1:#20182b;--batch-2:#16241d;--batch-3:#2b2416;--batch-4:#2b1620;--batch-5:#16292b;--batch-6:#1f2b16;
   }
 }
 body{font-family:-apple-system,BlinkMacSystemFont,'Segoe UI',sans-serif;background:var(--bg3);color:var(--text);font-size:14px;line-height:1.5;min-height:100vh;}
@@ -243,11 +245,23 @@ tr:last-child td{border-bottom:none;}
 tr.row-low-stock td {
   background: #fff0f0;
 }
+/* Invoice batch grouping colors — mgr-hist-body only */
+tr.batch-c0 td{background:var(--batch-0);}
+tr.batch-c1 td{background:var(--batch-1);}
+tr.batch-c2 td{background:var(--batch-2);}
+tr.batch-c3 td{background:var(--batch-3);}
+tr.batch-c4 td{background:var(--batch-4);}
+tr.batch-c5 td{background:var(--batch-5);}
+tr.batch-c6 td{background:var(--batch-6);}
 @media(prefers-color-scheme:dark){
   tr.row-low-stock td {
     background: #2a1515;
   }
 }
+
+/* Give product names more breathing room in movement tables */
+#mgr-hist-body td:nth-child(3),
+#sr-hist-body td:nth-child(3){min-width:150px;}
 </style>
 </head>
 <body>
@@ -466,6 +480,13 @@ tr.row-low-stock td {
 
   <!-- Log purchase -->
   <div id="mgr-purchase" style="display:none;">
+    <div id="inv-edit-banner" style="display:none;background:var(--bg-info);color:var(--info);padding:10px 14px;border-radius:var(--radius);margin-bottom:1rem;font-size:13px;align-items:center;justify-content:space-between;gap:10px;flex-wrap:wrap;">
+      <span id="inv-edit-banner-text"></span>
+      <div style="display:flex;gap:6px;">
+        <button class="btn small danger" onclick="deleteInvoiceBatch(editingBatchId)">Delete entire invoice</button>
+        <button class="btn small" onclick="clearInvoice()">Cancel edit</button>
+      </div>
+    </div>
     <div class="card">
       <div class="section-title">Incoming stock from supplier</div>
       <div class="form-row">
@@ -1043,7 +1064,21 @@ function renderMgrHistory(filter){
   }
   if(!filtered.length){ tbody.innerHTML='<tr><td colspan="13" class="empty-state">No movements yet</td></tr>'; return; }
   const tagMap={in:'<span class="tag in">Purchase</span>',out:'<span class="tag out">Removal</span>',sale:'<span class="tag sale">Sale</span>',loss:'<span class="tag loss">Loss</span>'};
-  tbody.innerHTML=filtered.map(m=>{ const p=state.products.find(x=>x.id===m.product_id); const retail=m.type==='in'&&m.margin!=null?(m.cost_per_unit/(1-m.margin/100)):null; return `<tr id="mrow-${m.id}"><td>${m.date}</td><td>${tagMap[m.type]||'<span class="tag out">Out</span>'}${m.promo?'<span class="promo-badge">promo</span>':''}</td><td>${p?catDot(p.category)+p.name:'—'}</td><td>${p?volPill(p.volume):'—'}</td><td>${m.qty}</td><td>${dash(m.person)}</td><td>${m.sale_price!=null?'€'+Number(m.sale_price).toFixed(2):dash(null)}</td><td>${m.sale_price!=null?'<strong>€'+(Number(m.sale_price)*m.qty).toFixed(2)+'</strong>':dash(null)}</td><td>${m.cost_per_unit!=null?'€'+Number(m.cost_per_unit).toFixed(2):dash(null)}</td><td>${retail?'€'+retail.toFixed(2):dash(null)}</td><td>${dash(m.submitter)}</td><td>${noteCell(m.notes)}</td><td style="font-size:12px;color:var(--text2);">${m.invoice||'—'}</td><td><div class="action-btns"><button class="btn ghost" onclick="openEditMovement('${m.id}','mgr')"><i class="ti ti-edit"></i></button><button class="btn danger" onclick="deleteMovement('${m.id}','mgr')"><i class="ti ti-trash"></i></button></div></td></tr>`; }).join('');
+  // Group colouring for multi-line invoices
+  const batchCounts={};
+  filtered.forEach(m=>{ if(m.invoice_batch_id) batchCounts[m.invoice_batch_id]=(batchCounts[m.invoice_batch_id]||0)+1; });
+  const batchClassMap={};
+  let batchColorIdx=0;
+  Object.keys(batchCounts).forEach(bid=>{
+    if(batchCounts[bid]>1){ batchClassMap[bid]='batch-c'+(batchColorIdx%7); batchColorIdx++; }
+  });
+  tbody.innerHTML=filtered.map(m=>{
+    const p=state.products.find(x=>x.id===m.product_id);
+    const retail=m.type==='in'&&m.margin!=null?(m.cost_per_unit/(1-m.margin/100)):null;
+    const rowClass=(m.invoice_batch_id&&batchClassMap[m.invoice_batch_id])?batchClassMap[m.invoice_batch_id]:'';
+    const batchBadge=(m.invoice_batch_id&&batchCounts[m.invoice_batch_id]>1)?'<span class="vol-pill" style="margin-left:4px;" title="Part of a '+batchCounts[m.invoice_batch_id]+'-line invoice">×'+batchCounts[m.invoice_batch_id]+'</span>':'';
+    return `<tr id="mrow-${m.id}" class="${rowClass}"><td>${m.date}</td><td>${tagMap[m.type]||'<span class="tag out">Out</span>'}${m.promo?'<span class="promo-badge">promo</span>':''}</td><td>${p?catDot(p.category)+p.name:'—'}</td><td>${p?volPill(p.volume):'—'}</td><td>${m.qty}</td><td>${dash(m.person)}</td><td>${m.sale_price!=null?'€'+Number(m.sale_price).toFixed(2):dash(null)}</td><td>${m.sale_price!=null?'<strong>€'+(Number(m.sale_price)*m.qty).toFixed(2)+'</strong>':dash(null)}</td><td>${m.cost_per_unit!=null?'€'+Number(m.cost_per_unit).toFixed(2):dash(null)}</td><td>${retail?'€'+retail.toFixed(2):dash(null)}</td><td>${dash(m.submitter)}</td><td>${noteCell(m.notes)}</td><td style="font-size:12px;color:var(--text2);">${m.invoice||'—'}${batchBadge}</td><td><div class="action-btns"><button class="btn ghost" onclick="openEditMovement('${m.id}','mgr')"><i class="ti ti-edit"></i></button><button class="btn danger" onclick="deleteMovement('${m.id}','mgr')"><i class="ti ti-trash"></i></button></div></td></tr>`;
+  }).join('');
 }
 
 // ── Render: products ──────────────────────────────────
@@ -1228,6 +1263,10 @@ function updatePurchasePreview(){}
 // ── Edit movement modal ───────────────────────────────
 function openEditMovement(mid,context){
   const m=state.movements.find(x=>x.id===mid); if(!m)return;
+  if(context==='mgr' && m.invoice_batch_id){
+    const batchCount = state.movements.filter(x=>x.invoice_batch_id===m.invoice_batch_id).length;
+    if(batchCount>1){ openEditInvoiceBatch(m.invoice_batch_id); return; }
+  }
   const p=state.products.find(x=>x.id===m.product_id);
   const isIn=m.type==='in'; const isSale=m.type==='sale';
   const modal=document.getElementById('edit-mov-modal');
@@ -1253,7 +1292,15 @@ async function saveMovement(mid,context){
 }
 
 async function deleteMovement(mid,context){
-  if(!confirm('Delete this movement? Stock levels will update.')) return;
+  const m=state.movements.find(x=>x.id===mid);
+  let msg='Delete this movement? Stock levels will update.';
+  if(context==='mgr' && m && m.invoice_batch_id){
+    const siblingCount=state.movements.filter(x=>x.invoice_batch_id===m.invoice_batch_id && x.id!==mid).length;
+    if(siblingCount>0){
+      msg='This purchase is part of a shared invoice with '+siblingCount+' other line(s), split by shipping weight. Deleting only this line will leave the shipping split on the remaining lines unchanged — it is usually better to edit the whole invoice instead.\n\nDelete this line only anyway?';
+    }
+  }
+  if(!confirm(msg)) return;
   try{ await sbDelete('movements',mid); state.movements=state.movements.filter(m=>m.id!==mid); if(context==='sr')renderSrHistory(currentSrHistFilter); else{ renderMgrHistory(currentMgrHistFilter); renderMgrDashboard(); } } catch(e){ alert('Error: '+e.message); }
 }
 
@@ -1410,15 +1457,20 @@ function runExport(){
 
 // ── Invoice entry ─────────────────────────────────────
 let invoiceLines = [];
+let editingBatchId = null;
 
 function volToLitres(vol){
   const map={'1L':1,'4L':4,'5L':5,'20L':20,'60L':60,'208L':208};
   return map[vol]||1;
 }
 
+function generateBatchId(){
+  return 'batch_'+Date.now().toString(36)+Math.random().toString(36).slice(2,8);
+}
+
 function addInvoiceLine(){
-  const id = Date.now();
-  invoiceLines.push({id, productId:null, product:null, qty:1, cost:''});
+  const id = Date.now()+Math.floor(Math.random()*1000);
+  invoiceLines.push({id, dbId:null, productId:null, product:null, qty:1, cost:''});
   renderInvoiceLines();
 }
 
@@ -1590,12 +1642,26 @@ async function confirmInvoice(){
   readyLines.forEach(l=>{ totalLitres += volToLitres(l.product.volume) * l.qty; });
   const shippingPerLitre = totalLitres > 0 ? shipping / totalLitres : 0;
 
+  const batchId = editingBatchId || (readyLines.length>1 ? generateBatchId() : null);
+  const wasEditing = !!editingBatchId;
+
   const errEl = document.getElementById('mgr-error');
   const sucEl = document.getElementById('mgr-success');
   errEl.textContent='';
   sucEl.textContent='Saving…';
 
   try{
+    // If editing an existing invoice, delete any lines the user removed
+    if(editingBatchId){
+      const originalIds = state.movements.filter(m=>m.invoice_batch_id===editingBatchId).map(m=>m.id);
+      const keptIds = readyLines.filter(l=>l.dbId).map(l=>l.dbId);
+      const toDelete = originalIds.filter(id=>!keptIds.includes(id));
+      for(const id of toDelete){
+        await sbDelete('movements', id);
+        state.movements = state.movements.filter(m=>m.id!==id);
+      }
+    }
+
     for(const l of readyLines){
       const litresPerCan = volToLitres(l.product.volume);
       const baseCost = parseFloat(l.cost)||0;
@@ -1604,14 +1670,23 @@ async function confirmInvoice(){
         type:'in', date, invoice:ref||null, supplier:'Pakelo',
         product_id:l.product.id, qty:l.qty,
         cost_per_unit:+landedCost.toFixed(4),
-        margin:+margin.toFixed(2), promo:promo||false
+        margin:+margin.toFixed(2), promo:promo||false,
+        shipping_per_litre:+shippingPerLitre.toFixed(6),
+        invoice_batch_id: batchId
       };
-      const row = await sbInsert('movements', data);
-      state.movements.unshift(row);
+      if(l.dbId){
+        await sbUpdate('movements', l.dbId, data);
+        const idx = state.movements.findIndex(m=>m.id===l.dbId);
+        if(idx>-1) state.movements[idx] = {...state.movements[idx], ...data};
+      } else {
+        const row = await sbInsert('movements', data);
+        state.movements.unshift(row);
+      }
     }
-    sucEl.textContent = readyLines.length+' line'+(readyLines.length>1?'s':'')+' saved successfully ✓';
+    sucEl.textContent = wasEditing ? 'Invoice updated ✓' : (readyLines.length+' line'+(readyLines.length>1?'s':'')+' saved successfully ✓');
     clearInvoice();
     renderMgrDashboard();
+    renderMgrHistory(currentMgrHistFilter);
     setTimeout(()=>sucEl.textContent='', 3000);
   } catch(e){
     errEl.textContent = 'Error saving: '+e.message;
@@ -1621,12 +1696,69 @@ async function confirmInvoice(){
 
 function clearInvoice(){
   invoiceLines=[];
+  editingBatchId=null;
+  hideInvoiceEditBanner();
   renderInvoiceLines();
   document.getElementById('mgr-shipping').value='';
   document.getElementById('mgr-invoice').value='';
   document.getElementById('mgr-margin').value='30';
   const promoEl=document.getElementById('mgr-promo'); if(promoEl) promoEl.checked=false;
   document.getElementById('inv-summary').style.display='none';
+}
+
+function showInvoiceEditBanner(count, ref){
+  const b=document.getElementById('inv-edit-banner');
+  if(!b) return;
+  const t=document.getElementById('inv-edit-banner-text');
+  if(t) t.textContent='Editing invoice'+(ref?' '+ref:'')+' — '+count+' line'+(count>1?'s':'')+'. Saving will recalculate the shipping split across all lines.';
+  b.style.display='flex';
+}
+
+function hideInvoiceEditBanner(){
+  const b=document.getElementById('inv-edit-banner'); if(b) b.style.display='none';
+}
+
+function openEditInvoiceBatch(batchId){
+  const lines = state.movements.filter(m=>m.invoice_batch_id===batchId && m.type==='in');
+  if(!lines.length) return;
+  editingBatchId = batchId;
+  invoiceLines = lines.map((m,idx)=>{
+    const product = state.products.find(p=>p.id===m.product_id) || null;
+    const vol = product?product.volume:'4L';
+    const litresPerCan = volToLitres(vol);
+    const spl = m.shipping_per_litre||0;
+    const shippingPerCan = spl*litresPerCan;
+    const baseCost = Math.max(0, (m.cost_per_unit||0) - shippingPerCan);
+    return {id:Date.now()+idx, dbId:m.id, productId:m.product_id, product, qty:m.qty, cost:baseCost.toFixed(2)};
+  });
+  const first = lines[0];
+  document.getElementById('mgr-date').value = first.date;
+  document.getElementById('mgr-invoice').value = first.invoice||'';
+  document.getElementById('mgr-margin').value = (first.margin!=null?first.margin:30);
+  const promoEl=document.getElementById('mgr-promo'); if(promoEl) promoEl.checked=!!first.promo;
+  let totalLitres=0;
+  lines.forEach(m=>{ const p=state.products.find(x=>x.id===m.product_id); totalLitres += volToLitres(p?p.volume:'4L')*m.qty; });
+  const spl = first.shipping_per_litre||0;
+  document.getElementById('mgr-shipping').value = (spl*totalLitres).toFixed(2);
+  showInvoiceEditBanner(lines.length, first.invoice);
+  const tabBtns=document.querySelectorAll('#screen-manager .tab');
+  mgrTab('purchase', tabBtns[3]);
+  renderInvoiceLines();
+  recalcInvoice();
+}
+
+async function deleteInvoiceBatch(batchId){
+  if(!batchId) return;
+  const lines = state.movements.filter(m=>m.invoice_batch_id===batchId);
+  if(!lines.length) return;
+  if(!confirm('Delete this entire invoice? This will remove all '+lines.length+' line(s) and update stock levels.')) return;
+  try{
+    for(const m of lines){ await sbDelete('movements', m.id); }
+    state.movements = state.movements.filter(m=>m.invoice_batch_id!==batchId);
+    clearInvoice();
+    renderMgrDashboard();
+    renderMgrHistory(currentMgrHistFilter);
+  } catch(e){ alert('Error deleting invoice: '+e.message); }
 }
 
 // Init invoice date on load
