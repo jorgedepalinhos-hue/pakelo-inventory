@@ -491,10 +491,10 @@ tr.batch-c6 td{background:var(--batch-6);}
       <div class="section-title">Incoming stock from supplier</div>
       <div class="form-row">
         <div class="form-group"><label>Invoice date</label><input type="date" id="mgr-date"></div>
-        <div class="form-group"><label>Invoice / ref</label><input type="text" id="mgr-invoice" placeholder="e.g. INV-2024-001"></div>
+        <div class="form-group"><label>Default invoice / ref <span style="font-weight:400;color:var(--text3);">(used for lines below unless overridden)</span></label><input type="text" id="mgr-invoice" placeholder="e.g. INV-2024-001"></div>
       </div>
       <div class="form-row">
-        <div class="form-group"><label>Shipping cost (€) <span style="font-weight:400;color:var(--text3);">(optional)</span></label><input type="number" id="mgr-shipping" step="0.01" placeholder="0.00" oninput="recalcInvoice()"></div>
+        <div class="form-group"><label>Shipping cost for this shipment (€) <span style="font-weight:400;color:var(--text3);">(optional — split by weight across all lines below, regardless of invoice ref)</span></label><input type="number" id="mgr-shipping" step="0.01" placeholder="0.00" oninput="recalcInvoice()"></div>
         <div class="form-group"><label>Desired margin (%)</label><input type="number" id="mgr-margin" step="1" value="30" oninput="recalcInvoice()"></div>
       </div>
     </div>
@@ -1064,19 +1064,21 @@ function renderMgrHistory(filter){
   }
   if(!filtered.length){ tbody.innerHTML='<tr><td colspan="13" class="empty-state">No movements yet</td></tr>'; return; }
   const tagMap={in:'<span class="tag in">Purchase</span>',out:'<span class="tag out">Removal</span>',sale:'<span class="tag sale">Sale</span>',loss:'<span class="tag loss">Loss</span>'};
-  // Group colouring for multi-line invoices
+  // Group colouring for multi-line invoices — works for both new (batch id) and
+  // older invoices (grouped by matching invoice reference text)
   const batchCounts={};
-  filtered.forEach(m=>{ if(m.invoice_batch_id) batchCounts[m.invoice_batch_id]=(batchCounts[m.invoice_batch_id]||0)+1; });
+  filtered.forEach(m=>{ const key=getBatchKey(m); if(key) batchCounts[key]=(batchCounts[key]||0)+1; });
   const batchClassMap={};
   let batchColorIdx=0;
-  Object.keys(batchCounts).forEach(bid=>{
-    if(batchCounts[bid]>1){ batchClassMap[bid]='batch-c'+(batchColorIdx%7); batchColorIdx++; }
+  Object.keys(batchCounts).forEach(key=>{
+    if(batchCounts[key]>1){ batchClassMap[key]='batch-c'+(batchColorIdx%7); batchColorIdx++; }
   });
   tbody.innerHTML=filtered.map(m=>{
     const p=state.products.find(x=>x.id===m.product_id);
     const retail=m.type==='in'&&m.margin!=null?(m.cost_per_unit/(1-m.margin/100)):null;
-    const rowClass=(m.invoice_batch_id&&batchClassMap[m.invoice_batch_id])?batchClassMap[m.invoice_batch_id]:'';
-    const batchBadge=(m.invoice_batch_id&&batchCounts[m.invoice_batch_id]>1)?'<span class="vol-pill" style="margin-left:4px;" title="Part of a '+batchCounts[m.invoice_batch_id]+'-line invoice">×'+batchCounts[m.invoice_batch_id]+'</span>':'';
+    const key=getBatchKey(m);
+    const rowClass=(key&&batchClassMap[key])?batchClassMap[key]:'';
+    const batchBadge=(key&&batchCounts[key]>1)?'<span class="vol-pill" style="margin-left:4px;" title="Part of a '+batchCounts[key]+'-line invoice">×'+batchCounts[key]+'</span>':'';
     return `<tr id="mrow-${m.id}" class="${rowClass}"><td>${m.date}</td><td>${tagMap[m.type]||'<span class="tag out">Out</span>'}${m.promo?'<span class="promo-badge">promo</span>':''}</td><td>${p?catDot(p.category)+p.name:'—'}</td><td>${p?volPill(p.volume):'—'}</td><td>${m.qty}</td><td>${dash(m.person)}</td><td>${m.sale_price!=null?'€'+Number(m.sale_price).toFixed(2):dash(null)}</td><td>${m.sale_price!=null?'<strong>€'+(Number(m.sale_price)*m.qty).toFixed(2)+'</strong>':dash(null)}</td><td>${m.cost_per_unit!=null?'€'+Number(m.cost_per_unit).toFixed(2):dash(null)}</td><td>${retail?'€'+retail.toFixed(2):dash(null)}</td><td>${dash(m.submitter)}</td><td>${noteCell(m.notes)}</td><td style="font-size:12px;color:var(--text2);">${m.invoice||'—'}${batchBadge}</td><td><div class="action-btns"><button class="btn ghost" onclick="openEditMovement('${m.id}','mgr')"><i class="ti ti-edit"></i></button><button class="btn danger" onclick="deleteMovement('${m.id}','mgr')"><i class="ti ti-trash"></i></button></div></td></tr>`;
   }).join('');
 }
@@ -1263,9 +1265,12 @@ function updatePurchasePreview(){}
 // ── Edit movement modal ───────────────────────────────
 function openEditMovement(mid,context){
   const m=state.movements.find(x=>x.id===mid); if(!m)return;
-  if(context==='mgr' && m.invoice_batch_id){
-    const batchCount = state.movements.filter(x=>x.invoice_batch_id===m.invoice_batch_id).length;
-    if(batchCount>1){ openEditInvoiceBatch(m.invoice_batch_id); return; }
+  if(context==='mgr'){
+    const key=getBatchKey(m);
+    if(key){
+      const groupCount=movementsInGroup(key).length;
+      if(groupCount>1){ openEditInvoiceBatch(key); return; }
+    }
   }
   const p=state.products.find(x=>x.id===m.product_id);
   const isIn=m.type==='in'; const isSale=m.type==='sale';
@@ -1294,10 +1299,13 @@ async function saveMovement(mid,context){
 async function deleteMovement(mid,context){
   const m=state.movements.find(x=>x.id===mid);
   let msg='Delete this movement? Stock levels will update.';
-  if(context==='mgr' && m && m.invoice_batch_id){
-    const siblingCount=state.movements.filter(x=>x.invoice_batch_id===m.invoice_batch_id && x.id!==mid).length;
-    if(siblingCount>0){
-      msg='This purchase is part of a shared invoice with '+siblingCount+' other line(s), split by shipping weight. Deleting only this line will leave the shipping split on the remaining lines unchanged — it is usually better to edit the whole invoice instead.\n\nDelete this line only anyway?';
+  if(context==='mgr' && m){
+    const key=getBatchKey(m);
+    if(key){
+      const siblingCount=movementsInGroup(key).filter(x=>x.id!==mid).length;
+      if(siblingCount>0){
+        msg='This purchase is part of a shared invoice with '+siblingCount+' other line(s), split by shipping weight. Deleting only this line will leave the shipping split on the remaining lines unchanged — it is usually better to edit the whole invoice instead.\n\nDelete this line only anyway?';
+      }
     }
   }
   if(!confirm(msg)) return;
@@ -1458,6 +1466,7 @@ function runExport(){
 // ── Invoice entry ─────────────────────────────────────
 let invoiceLines = [];
 let editingBatchId = null;
+let editingGroupKey = null;
 
 function volToLitres(vol){
   const map={'1L':1,'4L':4,'5L':5,'20L':20,'60L':60,'208L':208};
@@ -1468,9 +1477,23 @@ function generateBatchId(){
   return 'batch_'+Date.now().toString(36)+Math.random().toString(36).slice(2,8);
 }
 
+// Groups a purchase movement either by its real batch id (new invoices) or,
+// for older invoices logged before batch ids existed, by its invoice reference text.
+function getBatchKey(m){
+  if(!m||m.type!=='in') return null;
+  if(m.invoice_batch_id) return 'id:'+m.invoice_batch_id;
+  if(m.invoice && m.invoice.trim()) return 'ref:'+m.invoice.trim().toLowerCase();
+  return null;
+}
+
+function movementsInGroup(key){
+  if(!key) return [];
+  return state.movements.filter(m=>getBatchKey(m)===key);
+}
+
 function addInvoiceLine(){
   const id = Date.now()+Math.floor(Math.random()*1000);
-  invoiceLines.push({id, dbId:null, productId:null, product:null, qty:1, cost:''});
+  invoiceLines.push({id, dbId:null, productId:null, product:null, qty:1, cost:'', invoiceRef:''});
   renderInvoiceLines();
 }
 
@@ -1512,6 +1535,10 @@ function renderInvoiceLines(){
           <label>Cost per can (€)</label>
           <input type="number" step="0.01" placeholder="0.00" value="${line.cost}" oninput="updateInvLine(${line.id},'cost',this.value)">
         </div>
+      </div>
+      <div class="form-group" style="margin-top:8px;">
+        <label>Invoice ref <span style="font-weight:400;color:var(--text3);">(only if different from the default above — e.g. a different supplier billing this product)</span></label>
+        <input type="text" placeholder="Same as default invoice / ref" value="${line.invoiceRef||''}" oninput="updateInvLine(${line.id},'invoiceRef',this.value)">
       </div>
     </div>
   `).join('');
@@ -1561,6 +1588,7 @@ function updateInvLine(lineId, field, value){
   if(!line) return;
   if(field==='qty') line.qty = parseInt(value)||1;
   if(field==='cost') line.cost = value;
+  if(field==='invoiceRef') line.invoiceRef = value;
   recalcInvoice();
 }
 
@@ -1653,7 +1681,7 @@ async function confirmInvoice(){
   try{
     // If editing an existing invoice, delete any lines the user removed
     if(editingBatchId){
-      const originalIds = state.movements.filter(m=>m.invoice_batch_id===editingBatchId).map(m=>m.id);
+      const originalIds = movementsInGroup(editingGroupKey).map(m=>m.id);
       const keptIds = readyLines.filter(l=>l.dbId).map(l=>l.dbId);
       const toDelete = originalIds.filter(id=>!keptIds.includes(id));
       for(const id of toDelete){
@@ -1666,8 +1694,9 @@ async function confirmInvoice(){
       const litresPerCan = volToLitres(l.product.volume);
       const baseCost = parseFloat(l.cost)||0;
       const landedCost = baseCost + shippingPerLitre * litresPerCan;
+      const lineInvoice = (l.invoiceRef&&l.invoiceRef.trim()) ? l.invoiceRef.trim() : (ref||null);
       const data = {
-        type:'in', date, invoice:ref||null, supplier:'Pakelo',
+        type:'in', date, invoice:lineInvoice, supplier:'Pakelo',
         product_id:l.product.id, qty:l.qty,
         cost_per_unit:+landedCost.toFixed(4),
         margin:+margin.toFixed(2), promo:promo||false,
@@ -1697,6 +1726,7 @@ async function confirmInvoice(){
 function clearInvoice(){
   invoiceLines=[];
   editingBatchId=null;
+  editingGroupKey=null;
   hideInvoiceEditBanner();
   renderInvoiceLines();
   document.getElementById('mgr-shipping').value='';
@@ -1718,10 +1748,17 @@ function hideInvoiceEditBanner(){
   const b=document.getElementById('inv-edit-banner'); if(b) b.style.display='none';
 }
 
-function openEditInvoiceBatch(batchId){
-  const lines = state.movements.filter(m=>m.invoice_batch_id===batchId && m.type==='in');
+function openEditInvoiceBatch(key){
+  const lines = movementsInGroup(key);
   if(!lines.length) return;
-  editingBatchId = batchId;
+  // Reuse a real batch id if one of the lines already has one (new-style invoices);
+  // otherwise generate one now — saving will tag every line with it, upgrading
+  // this legacy invoice-ref group into a proper tracked batch going forward.
+  const existingBatchId = (lines.find(m=>m.invoice_batch_id)||{}).invoice_batch_id;
+  editingBatchId = existingBatchId || generateBatchId();
+  editingGroupKey = key;
+  const first = lines[0];
+  const defaultRef = first.invoice||'';
   invoiceLines = lines.map((m,idx)=>{
     const product = state.products.find(p=>p.id===m.product_id) || null;
     const vol = product?product.volume:'4L';
@@ -1729,15 +1766,17 @@ function openEditInvoiceBatch(batchId){
     const spl = m.shipping_per_litre||0;
     const shippingPerCan = spl*litresPerCan;
     const baseCost = Math.max(0, (m.cost_per_unit||0) - shippingPerCan);
-    return {id:Date.now()+idx, dbId:m.id, productId:m.product_id, product, qty:m.qty, cost:baseCost.toFixed(2)};
+    const lineRef = (m.invoice||'')===defaultRef ? '' : (m.invoice||'');
+    return {id:Date.now()+idx, dbId:m.id, productId:m.product_id, product, qty:m.qty, cost:baseCost.toFixed(2), invoiceRef:lineRef};
   });
-  const first = lines[0];
   document.getElementById('mgr-date').value = first.date;
-  document.getElementById('mgr-invoice').value = first.invoice||'';
+  document.getElementById('mgr-invoice').value = defaultRef;
   document.getElementById('mgr-margin').value = (first.margin!=null?first.margin:30);
   const promoEl=document.getElementById('mgr-promo'); if(promoEl) promoEl.checked=!!first.promo;
   let totalLitres=0;
   lines.forEach(m=>{ const p=state.products.find(x=>x.id===m.product_id); totalLitres += volToLitres(p?p.volume:'4L')*m.qty; });
+  // Legacy lines (logged before shipping tracking existed) have no shipping_per_litre —
+  // treat their current cost as pure base cost with €0 shipping recorded so far.
   const spl = first.shipping_per_litre||0;
   document.getElementById('mgr-shipping').value = (spl*totalLitres).toFixed(2);
   showInvoiceEditBanner(lines.length, first.invoice);
@@ -1749,12 +1788,13 @@ function openEditInvoiceBatch(batchId){
 
 async function deleteInvoiceBatch(batchId){
   if(!batchId) return;
-  const lines = state.movements.filter(m=>m.invoice_batch_id===batchId);
+  const lines = movementsInGroup(editingGroupKey&&editingGroupKey.length?editingGroupKey:('id:'+batchId));
   if(!lines.length) return;
   if(!confirm('Delete this entire invoice? This will remove all '+lines.length+' line(s) and update stock levels.')) return;
   try{
     for(const m of lines){ await sbDelete('movements', m.id); }
-    state.movements = state.movements.filter(m=>m.invoice_batch_id!==batchId);
+    const ids=new Set(lines.map(m=>m.id));
+    state.movements = state.movements.filter(m=>!ids.has(m.id));
     clearInvoice();
     renderMgrDashboard();
     renderMgrHistory(currentMgrHistFilter);
