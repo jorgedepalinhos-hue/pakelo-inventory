@@ -392,6 +392,7 @@ tr.batch-c6 td{background:var(--batch-6);}
     <button class="tab" onclick="mgrTab('purchase',this)">Log purchase</button>
     <button class="tab" onclick="mgrTab('history',this)">All movements</button>
     <button class="tab" onclick="mgrTab('products',this)">Products</button>
+    <button class="tab" onclick="mgrTab('reorder',this)">Re-order</button>
   </div>
 
   <!-- Dashboard -->
@@ -586,6 +587,19 @@ tr.batch-c6 td{background:var(--batch-6);}
     <input class="search-filter" type="text" placeholder="Filter products…" oninput="renderProductList(this.value)">
     <div id="prod-list-grouped"></div>
   </div>
+
+  <!-- Re-order -->
+  <div id="mgr-reorder" style="display:none;">
+    <div class="card">
+      <div class="section-title">Re-order list</div>
+      <p style="font-size:13px;color:var(--text2);margin-bottom:0;">Products at or near their low-stock threshold. Uncheck anything you don't want to include, adjust quantities if needed, then copy the list to send to your supplier.</p>
+    </div>
+    <div id="reorder-body"></div>
+    <div class="card" id="reorder-copy-card" style="display:none;">
+      <button class="btn primary" onclick="copyReorderList()" style="width:100%;justify-content:center;"><i class="ti ti-copy"></i> Copy list</button>
+      <div class="success-msg" id="reorder-copy-success"></div>
+    </div>
+  </div>
 </div>
 
 <!-- ══ MODALS ═════════════════════════════════════════════ -->
@@ -754,7 +768,7 @@ function srTab(t,el){
 }
 
 function mgrTab(t,el){
-  ['dashboard','kpi','movements','purchase','history','products'].forEach(x=>document.getElementById('mgr-'+x).style.display=x===t?'':'none');
+  ['dashboard','kpi','movements','purchase','history','products','reorder'].forEach(x=>document.getElementById('mgr-'+x).style.display=x===t?'':'none');
   document.querySelectorAll('#screen-manager .tab').forEach(b=>b.classList.remove('active'));
   if(el)el.classList.add('active');
   if(t==='dashboard') renderMgrDashboard();
@@ -762,6 +776,7 @@ function mgrTab(t,el){
   if(t==='kpi') renderKpi();
   if(t==='history') renderMgrHistory('');
   if(t==='products'){ renderProductList(''); renderThresholdFields(); }
+  if(t==='reorder') renderReorder();
 }
 
 function setSrType(type){
@@ -1104,6 +1119,90 @@ function renderProductList(filter){
 }
 
 function toggleProdDetail(pid){ const row=document.getElementById('prod-detail-'+pid); if(row) row.style.display=row.style.display==='none'?'':'none'; }
+
+// ── Re-order list ──────────────────────────────────────
+function renderReorder(){
+  const container=document.getElementById('reorder-body');
+  const copyCard=document.getElementById('reorder-copy-card');
+  const candidates=state.products.filter(p=>!p.ignore_low_stock).map(p=>{
+    const qty=getStock(p.id);
+    const threshold=lowThreshold(p.volume);
+    const nearBound=threshold*2;
+    let status=null;
+    if(qty<=threshold) status='low';
+    else if(qty<=nearBound) status='near';
+    if(!status) return null;
+    const target=threshold*3;
+    const suggested=Math.max(target-qty,1);
+    return {p,qty,threshold,status,suggested};
+  }).filter(Boolean);
+
+  if(!candidates.length){
+    container.innerHTML='<div class="card"><div class="empty-state">Nothing needs reordering right now 🎉</div></div>';
+    copyCard.style.display='none';
+    return;
+  }
+
+  // Sort: low stock first, then by how far below threshold, then name/volume
+  candidates.sort((a,b)=>{
+    if(a.status!==b.status) return a.status==='low'?-1:1;
+    return (a.qty-a.threshold)-(b.qty-b.threshold);
+  });
+
+  let html='<div class="card" style="padding:0;overflow:auto;"><table><thead><tr><th></th><th>Product</th><th>Volume</th><th>SKU</th><th>In stock</th><th>Status</th><th>Suggested qty</th></tr></thead><tbody>';
+  candidates.forEach(c=>{
+    const statusBadge = c.status==='low'
+      ? '<span class="tag out">Low stock</span>'
+      : '<span class="tag loss">Getting low</span>';
+    html+='<tr>'
+      +'<td><input type="checkbox" class="reorder-check" data-pid="'+c.p.id+'" checked></td>'
+      +'<td>'+catDot(c.p.category)+c.p.name+'</td>'
+      +'<td>'+volPill(c.p.volume)+'</td>'
+      +'<td style="font-size:12px;color:var(--text2);">'+(c.p.sku||'—')+'</td>'
+      +'<td class="'+(c.status==='low'?'low-stock':'')+'">'+c.qty+'</td>'
+      +'<td>'+statusBadge+'</td>'
+      +'<td><input type="number" min="1" value="'+c.suggested+'" data-pid="'+c.p.id+'" class="reorder-qty" style="width:70px;border-radius:var(--radius);border:0.5px solid var(--border2);background:var(--bg);color:var(--text);font-size:13px;padding:5px 8px;"></td>'
+      +'</tr>';
+  });
+  html+='</tbody></table></div>';
+  container.innerHTML=html;
+  copyCard.style.display='block';
+  document.getElementById('reorder-copy-success').textContent='';
+}
+
+async function copyReorderList(){
+  const rows=[];
+  document.querySelectorAll('.reorder-check').forEach(cb=>{
+    if(!cb.checked) return;
+    const pid=cb.dataset.pid;
+    const p=state.products.find(x=>x.id===pid);
+    if(!p) return;
+    const qtyInput=document.querySelector('.reorder-qty[data-pid="'+pid+'"]');
+    const qty=qtyInput?parseInt(qtyInput.value)||1:1;
+    rows.push([p.name, p.sku||'', p.volume||'', qty]);
+  });
+  const successEl=document.getElementById('reorder-copy-success');
+  if(!rows.length){
+    successEl.textContent='Nothing selected to copy.';
+    setTimeout(()=>successEl.textContent='',2500);
+    return;
+  }
+  const lines=['Product\tReference\tVolume\tQuantity', ...rows.map(r=>r.join('\t'))];
+  const text=lines.join('\n');
+  try{
+    await navigator.clipboard.writeText(text);
+    successEl.textContent='Copied '+rows.length+' item'+(rows.length>1?'s':'')+' to clipboard ✓';
+  } catch(e){
+    // Fallback for browsers without clipboard API access
+    const ta=document.createElement('textarea');
+    ta.value=text; ta.style.position='fixed'; ta.style.opacity='0';
+    document.body.appendChild(ta); ta.select();
+    try{ document.execCommand('copy'); successEl.textContent='Copied '+rows.length+' item'+(rows.length>1?'s':'')+' to clipboard ✓'; }
+    catch(e2){ successEl.textContent='Could not copy automatically — please select and copy manually.'; }
+    document.body.removeChild(ta);
+  }
+  setTimeout(()=>successEl.textContent='',3000);
+}
 
 // ── CRUD: products ────────────────────────────────────
 async function addProduct(){
